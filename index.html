@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PyLingo - Apprends Python</title>
+    
+    <!-- Paramètres iOS (Web App & Icone) -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PyLingo">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CodeMirror pour l'éditeur de code -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+    
+    <!-- Pyodide pour exécuter Python dans le navigateur -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #131f24;
+            color: white;
+            overscroll-behavior: none;
+        }
+        
+        /* Personnalisation de l'éditeur CodeMirror */
+        .CodeMirror {
+            border-radius: 0.75rem;
+            height: 100% !important;
+            font-size: 16px;
+            font-family: monospace;
+            background-color: #1e293b !important;
+        }
+        
+        /* Cache la scrollbar globale pour un look app */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+
+        .path-node {
+            transition: transform 0.2s;
+        }
+        .path-node:active {
+            transform: scale(0.95);
+        }
+        
+        .pulse-ring {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(88, 204, 2, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(88, 204, 2, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(88, 204, 2, 0); }
+        }
+
+        /* Drawer d'évaluation */
+        #feedback-drawer {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(100%);
+        }
+        #feedback-drawer.open {
+            transform: translateY(0);
+        }
+
+        /* Styles pour les descriptions d'exercices */
+        .exo-concept {
+            background: rgba(88, 204, 2, 0.08);
+            border-left: 3px solid #58cc02;
+            padding: 10px 14px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 10px;
+            font-size: 0.88rem;
+            line-height: 1.7;
+            color: #c8d6e5;
+        }
+        .exo-example {
+            background: rgba(206, 130, 255, 0.08);
+            border-left: 3px solid #ce82ff;
+            padding: 10px 14px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #d5c4e8;
+        }
+        .exo-example code {
+            color: #e2b6ff;
+        }
+        .exo-task {
+            background: rgba(255, 200, 0, 0.1);
+            border-left: 3px solid #ffc800;
+            padding: 10px 14px;
+            border-radius: 0 10px 10px 0;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #f0e6c8;
+            line-height: 1.6;
+        }
+        .lesson-desc-area code {
+            background: rgba(255,255,255,0.1);
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+            color: #a3e635;
+        }
+        .exo-task code {
+            color: #ffd866;
+        }
+
+        /* Section headers sur la carte */
+        .section-header {
+            background: linear-gradient(135deg, #1e3a4a 0%, #202f36 100%);
+            border: 2px solid #2d4a5a;
+            padding: 10px 24px;
+            border-radius: 16px;
+            text-align: center;
+            width: 80%;
+            max-width: 300px;
+        }
+        .section-header .section-icon {
+            font-size: 1.5rem;
+            margin-bottom: 2px;
+        }
+        .section-header .section-title {
+            font-weight: 800;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #94a3b8;
+        }
+
+        /* Indicateur de sauvegarde */
+        .save-flash {
+            animation: saveFlash 2s ease-out forwards;
+        }
+        @keyframes saveFlash {
+            0% { opacity: 1; transform: translateY(0); }
+            70% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-5px); }
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #1e3a4a;
+            border: 1px solid #58cc02;
+            color: #a3e635;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            z-index: 100;
+            opacity: 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col relative">
+
+    <!-- Écran de chargement Pyodide -->
+    <div id="loading-screen" class="absolute inset-0 z-50 bg-[#131f24] flex flex-col items-center justify-center">
+        <i class="ph ph-spinner-gap animate-spin text-6xl text-[#58cc02] mb-4"></i>
+        <h1 class="text-2xl font-bold text-white mb-2">PyLingo</h1>
+        <p class="text-gray-400 font-semibold" id="loading-text">Installation du moteur Python...</p>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast">
+        <i class="ph-fill ph-cloud-check text-lg"></i>
+        <span id="toast-text">Progression chargée !</span>
+    </div>
+
+    <!-- VUE 1 : LA CARTE (MAP) -->
+    <div id="map-view" class="flex-1 flex flex-col h-full overflow-hidden">
+        <!-- Header Map -->
+        <div class="h-16 border-b border-gray-700 flex items-center justify-between px-4 bg-[#131f24] shrink-0 sticky top-0 z-10">
+            <div class="flex items-center gap-2">
+                <i class="ph-fill ph-code text-2xl text-[#58cc02]"></i>
+                <span class="font-bold text-xl tracking-wider">PyLingo</span>
+            </div>
+            <div class="flex items-center gap-4 font-bold">
+                <!-- Save indicator -->
+                <div id="save-indicator" class="flex items-center gap-1 text-xs text-green-400 opacity-0 transition-opacity duration-500">
+                    <i class="ph ph-cloud-check"></i>
+                    <span>Sauvé</span>
+                </div>
+                <div class="flex items-center gap-1 text-[#ffc800]">
+                    <i class="ph-fill ph-crown text-xl"></i>
+                    <span id="xp-counter">0 XP</span>
+                </div>
+                <div class="flex items-center gap-1 text-[#ff4b4b]">
+                    <i class="ph-fill ph-heart text-xl"></i>
+                    <span>∞</span>
+                </div>
+                <!-- Reset button -->
+                <button onclick="resetProgress()" class="text-gray-500 hover:text-gray-300 transition-colors" title="Réinitialiser la progression">
+                    <i class="ph ph-arrow-counter-clockwise text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chemin d'apprentissage (défilement inversé) -->
+        <div id="path-container" class="flex-1 overflow-y-auto overflow-x-hidden p-6 pb-32 flex flex-col-reverse items-center gap-8">
+            <!-- Les nœuds seront générés ici en JS -->
+        </div>
+    </div>
+
+    <!-- VUE 2 : L'EXERCICE (LESSON) -->
+    <div id="lesson-view" class="fixed inset-0 z-40 bg-[#131f24] flex flex-col hidden">
+        <!-- Header Lesson -->
+        <div class="h-14 flex items-center px-4 shrink-0">
+            <button onclick="closeLesson()" class="text-gray-400 hover:text-white text-2xl p-2">
+                <i class="ph ph-x"></i>
+            </button>
+            <div class="flex-1 mx-4">
+                <div class="h-4 bg-gray-700 rounded-full w-full overflow-hidden">
+                    <div id="lesson-progress-bar" class="h-full bg-[#58cc02] w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+            <div class="text-gray-400 font-bold" id="lesson-number-display">1/100</div>
+        </div>
+
+        <!-- Contenu de l'exercice -->
+        <div class="flex-1 overflow-y-auto flex flex-col md:flex-row p-4 gap-4 pb-40">
+            
+            <!-- Instructions (Gauche sur PC, Haut sur Mobile) -->
+            <div class="md:w-1/3 flex flex-col gap-3 lesson-desc-area">
+                <div class="flex items-end gap-3">
+                    <div class="w-16 h-16 bg-[#202f36] rounded-2xl flex items-center justify-center border-2 border-gray-600 shrink-0">
+                        <i class="ph-fill ph-snake text-4xl text-[#58cc02]"></i>
+                    </div>
+                    <div class="bg-[#202f36] border border-gray-600 p-4 rounded-2xl rounded-bl-none relative flex-1 shadow-lg">
+                        <h2 id="lesson-title" class="font-bold text-xl mb-3 text-white">Titre</h2>
+                        <div id="lesson-desc" class="text-gray-300 leading-relaxed text-sm">Description de l'exercice.</div>
+                    </div>
+                </div>
+                <!-- Bouton Indice -->
+                <div id="hint-container" class="hidden">
+                    <button onclick="toggleHint()" id="hint-toggle-btn" class="w-full bg-[#202f36] border border-gray-600 hover:border-[#ce82ff] text-gray-400 hover:text-[#ce82ff] font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all text-sm">
+                        <i class="ph ph-lightbulb text-lg"></i>
+                        <span id="hint-btn-text">💡 Voir un indice</span>
+                    </button>
+                    <div id="hint-content" class="hidden mt-2 bg-[#1a2a33] border border-[#ce82ff]/30 p-4 rounded-xl text-sm text-[#d5c4e8] leading-relaxed">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Editeur et Console (Droite sur PC, Bas sur Mobile) -->
+            <div class="md:w-2/3 flex flex-col gap-4 h-[50vh] md:h-auto min-h-[400px]">
+                <div class="flex-1 rounded-xl overflow-hidden border-2 border-gray-700 flex flex-col">
+                    <div class="bg-gray-800 px-3 py-1 text-xs font-bold text-gray-400 flex justify-between items-center">
+                        <span>main.py</span>
+                        <button onclick="runCode()" class="text-[#58cc02] hover:text-green-400 flex items-center gap-1">
+                            <i class="ph-fill ph-play"></i> Exécuter
+                        </button>
+                    </div>
+                    <div class="flex-1 relative">
+                        <textarea id="code-editor"></textarea>
+                    </div>
+                </div>
+
+                <!-- Console -->
+                <div class="h-1/3 min-h-[120px] bg-black rounded-xl border-2 border-gray-700 flex flex-col">
+                    <div class="bg-gray-800 px-3 py-1 text-xs font-bold text-gray-400">Console</div>
+                    <div class="flex-1 p-2 overflow-y-auto font-mono text-sm text-gray-300" id="console-output">
+                        > Prêt...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer / Feedback Drawer -->
+        <div class="absolute bottom-0 left-0 right-0 z-50">
+            <!-- Bouton principal par défaut -->
+            <div id="action-bar" class="bg-[#131f24] border-t border-gray-700 p-4 flex justify-center md:justify-end">
+                <button onclick="checkAnswer()" class="w-full md:w-auto bg-[#58cc02] hover:bg-[#46a302] text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_0_#46a302] active:shadow-none active:translate-y-1 transition-all text-lg">
+                    Vérifier
+                </button>
+            </div>
+
+            <!-- Drawer de résultat (Caché par défaut) -->
+            <div id="feedback-drawer" class="absolute bottom-0 w-full p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div id="feedback-icon" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl font-bold bg-white"></div>
+                    <div>
+                        <h3 id="feedback-title" class="text-2xl font-bold mb-1">Feedback</h3>
+                        <p id="feedback-msg" class="text-lg opacity-90">Message</p>
+                    </div>
+                </div>
+                <button id="feedback-btn" class="w-full md:w-auto font-bold py-3 px-8 rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-1 transition-all text-lg">
+                    Continuer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. GÉNÉRATION DES 100 EXERCICES ---
+        const exercisesData = [];
+        
+        function addEx(title, desc, code, test, hint) {
+            let isMilestone = (exercisesData.length + 1) % 10 === 0;
+            exercisesData.push({ id: exercisesData.length + 1, title, desc, code, test, hint: hint || '', isMilestone });
+        }
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 1 : LES BASES (1-10)
+        // ═══════════════════════════════════════════
+
+        addEx("Premier contact",
+            `<div class="exo-concept">En Python, la fonction <code>print()</code> sert à <b>afficher du texte</b> à l'écran. C'est la toute première commande que tout programmeur apprend !<br>Pour afficher un mot, on le met entre <b>guillemets</b> (apostrophes) à l'intérieur des parenthèses.</div>
+            <div class="exo-example">Par exemple : <code>print('Hello')</code> affiche le mot <b>Hello</b> dans la console.</div>
+            <div class="exo-task">✏️ Écris le mot <code>'Bonjour'</code> entre les parenthèses du <code>print()</code> pour l'afficher.</div>`,
+            "print()",
+            "assert 'Bonjour' in __out, \"Assure-toi d'afficher exactement 'Bonjour'\"",
+            "Écris exactement : <code>print('Bonjour')</code><br>N'oublie pas les apostrophes autour du mot !");
+
+        addEx("Afficher Python",
+            `<div class="exo-concept">Tu sais maintenant utiliser <code>print()</code> ! Le texte qu'on met entre guillemets s'appelle une <b>chaîne de caractères</b> (ou « string » en anglais). Sans les guillemets, Python pense que c'est un nom de variable.</div>
+            <div class="exo-task">✏️ Remplace les <code>???</code> par le mot <code>Python</code> (avec les guillemets) pour l'afficher à l'écran.</div>`,
+            "print('???')",
+            "assert 'Python' in __out",
+            "Remplace <code>???</code> par <code>Python</code> → le code devient <code>print('Python')</code>");
+
+        addEx("Les Variables",
+            `<div class="exo-concept">Une <b>variable</b>, c'est comme une boîte avec une étiquette. Tu lui donnes un <b>nom</b> (l'étiquette) et tu y ranges une <b>valeur</b> (le contenu).<br>En Python, on crée une variable avec le signe <code>=</code> (qui veut dire « reçoit la valeur »).</div>
+            <div class="exo-example">Exemple : <code>score = 42</code> crée une boîte appelée « score » qui contient le nombre 42.</div>
+            <div class="exo-task">✏️ Change la valeur de la variable <code>age</code> : remplace le <code>0</code> par <code>15</code>.</div>`,
+            "age = 0",
+            "assert age == 15",
+            "Modifie la ligne pour écrire : <code>age = 15</code>");
+
+        addEx("Variables de texte",
+            `<div class="exo-concept">Les variables ne contiennent pas que des nombres ! On peut aussi y mettre du <b>texte</b>. Pour ça, on met le texte entre guillemets (apostrophes).</div>
+            <div class="exo-example">Exemple : <code>prenom = 'Marie'</code> crée une variable contenant le texte « Marie ».</div>
+            <div class="exo-task">✏️ Crée une variable appelée <code>nom</code> et donne-lui la valeur <code>'Alice'</code> (avec les apostrophes !).</div>`,
+            "",
+            "assert nom == 'Alice'",
+            "Écris : <code>nom = 'Alice'</code>");
+
+        addEx("Afficher une variable",
+            `<div class="exo-concept">Pour afficher le contenu d'une variable, on utilise <code>print()</code> mais <b>sans guillemets</b> autour du nom de la variable. Si tu mets des guillemets, Python affichera le texte au lieu de la valeur !</div>
+            <div class="exo-example"><code>print(age)</code> → affiche <b>20</b> (la valeur)<br><code>print('age')</code> → affiche le mot <b>age</b> (le texte)</div>
+            <div class="exo-task">✏️ Ajoute <code>print(age)</code> sur la 2ème ligne pour afficher la valeur de <code>age</code>.</div>`,
+            "age = 20\n",
+            "assert str(age) in __out or '20' in __out",
+            "Ajoute sur la ligne vide : <code>print(age)</code> (sans guillemets autour de age)");
+
+        addEx("Changer de valeur",
+            `<div class="exo-concept">On peut <b>changer la valeur</b> d'une variable à tout moment ! Il suffit de réutiliser le signe <code>=</code> avec la nouvelle valeur. L'ancienne valeur sera remplacée.</div>
+            <div class="exo-example">Exemple :<br><code>x = 5</code> → x vaut 5<br><code>x = 10</code> → maintenant x vaut 10</div>
+            <div class="exo-task">✏️ Sur la ligne du commentaire, écris <code>score = 100</code> pour changer la valeur de score.</div>`,
+            "score = 0\n# Modifie score ici\n",
+            "assert score == 100",
+            "Remplace le commentaire par : <code>score = 100</code>");
+
+        addEx("Concaténation",
+            `<div class="exo-concept">On peut <b>coller</b> deux textes ensemble avec le signe <code>+</code>. Ça s'appelle la <b>concaténation</b>. Attention : ça ne marche qu'entre des textes (strings), pas entre un texte et un nombre.</div>
+            <div class="exo-example">Exemple : <code>'Bon' + 'jour'</code> donne <code>'Bonjour'</code></div>
+            <div class="exo-task">✏️ Remplace <code>???</code> par le nom de la variable <code>nom</code> (sans guillemets) pour afficher « Salut Bob ».</div>`,
+            "mot = 'Salut '\nnom = 'Bob'\nprint(mot + ???)",
+            "assert 'Salut Bob' in __out",
+            "Remplace <code>???</code> par <code>nom</code> → <code>print(mot + nom)</code>");
+
+        addEx("Types de données",
+            `<div class="exo-concept">En Python, il existe plusieurs <b>types de données</b> :<br>• <b>int</b> (nombre entier) : <code>42</code><br>• <b>str</b> (texte) : <code>'Hello'</code><br>• <b>bool</b> (vrai/faux) : <code>True</code> ou <code>False</code><br>⚠️ Les booléens commencent toujours par une <b>majuscule</b> !</div>
+            <div class="exo-task">✏️ Crée une variable <code>est_vrai</code> qui contient la valeur <code>True</code> (avec un T majuscule).</div>`,
+            "",
+            "assert est_vrai == True",
+            "Écris : <code>est_vrai = True</code> (attention à la majuscule !)");
+
+        addEx("L'erreur classique",
+            `<div class="exo-concept">Quand Python voit un mot <b>sans guillemets</b>, il pense que c'est le nom d'une variable. Si cette variable n'existe pas, il affiche une erreur <code>NameError</code>.<br>C'est l'une des erreurs les plus fréquentes chez les débutants !</div>
+            <div class="exo-example"><code>print(Bonjour)</code> → ❌ Erreur ! Python cherche une variable « Bonjour »<br><code>print('Bonjour')</code> → ✅ Affiche le texte « Bonjour »</div>
+            <div class="exo-task">✏️ Corrige le code en ajoutant des <b>guillemets</b> autour de <code>Bonjour</code> pour que ça devienne du texte.</div>`,
+            "print(Bonjour)",
+            "assert 'Bonjour' in __out",
+            "Ajoute des apostrophes : <code>print('Bonjour')</code>");
+
+        addEx("★ Profil Utilisateur",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu vas combiner tout ce que tu as appris : créer des variables et les afficher avec <code>print()</code>.</div>
+            <div class="exo-task">✏️ <b>Étape 1 :</b> Crée une variable <code>nom</code> contenant <code>'Hero'</code><br>
+            <b>Étape 2 :</b> Crée une variable <code>age</code> contenant <code>99</code><br>
+            <b>Étape 3 :</b> Affiche <code>nom</code> avec <code>print(nom)</code><br>
+            <b>Étape 4 :</b> Affiche <code>age</code> avec <code>print(age)</code></div>`,
+            "# Ton code ici\n",
+            "assert 'Hero' in __out and '99' in __out",
+            "Écris 4 lignes :<br><code>nom = 'Hero'</code><br><code>age = 99</code><br><code>print(nom)</code><br><code>print(age)</code>");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 2 : MATHÉMATIQUES (11-20)
+        // ═══════════════════════════════════════════
+
+        addEx("Addition",
+            `<div class="exo-concept">Python est une super calculatrice ! On peut faire des <b>additions</b> avec le signe <code>+</code>. On peut mettre le calcul directement dans <code>print()</code> et Python affichera le résultat.</div>
+            <div class="exo-example">Exemple : <code>print(3 + 4)</code> affiche <code>7</code></div>
+            <div class="exo-task">✏️ Écris <code>5 + 5</code> entre les parenthèses du <code>print()</code> pour afficher le résultat.</div>`,
+            "print()",
+            "assert '10' in __out",
+            "Écris : <code>print(5 + 5)</code>");
+
+        addEx("Soustraction",
+            `<div class="exo-concept">Pour <b>soustraire</b>, on utilise le signe <code>-</code>. On peut aussi modifier une variable en lui retirant une valeur.</div>
+            <div class="exo-example">Exemple : <code>x = 10</code> puis <code>x = x - 3</code> → x vaut maintenant 7.</div>
+            <div class="exo-task">✏️ Sur la ligne du commentaire, retire 1 à la variable <code>vies</code> en écrivant <code>vies = vies - 1</code>.</div>`,
+            "vies = 3\n# Modifie vies\n",
+            "assert vies == 2",
+            "Remplace le commentaire par : <code>vies = vies - 1</code>");
+
+        addEx("Multiplication",
+            `<div class="exo-concept">Pour <b>multiplier</b> en Python, on utilise l'étoile <code>*</code> (pas le signe ×). C'est la touche « étoile » ou « astérisque » sur ton clavier.</div>
+            <div class="exo-example">Exemple : <code>print(3 * 4)</code> affiche <code>12</code></div>
+            <div class="exo-task">✏️ Affiche le résultat de <code>7 * 8</code> en utilisant <code>print()</code>.</div>`,
+            "",
+            "assert '56' in __out",
+            "Écris : <code>print(7 * 8)</code>");
+
+        addEx("Division",
+            `<div class="exo-concept">Pour <b>diviser</b>, on utilise la barre oblique <code>/</code>. Attention : le résultat d'une division est toujours un nombre à virgule (un « float ») en Python.</div>
+            <div class="exo-example">Exemple : <code>print(10 / 2)</code> affiche <code>5.0</code> (avec un point, pas une virgule)</div>
+            <div class="exo-task">✏️ Divise 100 par 4 et affiche le résultat avec <code>print()</code>.</div>`,
+            "",
+            "assert '25' in __out",
+            "Écris : <code>print(100 / 4)</code> — cela affichera 25.0");
+
+        addEx("La tirelire",
+            `<div class="exo-concept">Pour <b>ajouter une valeur</b> à une variable existante, on peut écrire :<br><code>variable = variable + valeur</code><br>Ça prend l'ancienne valeur, ajoute quelque chose, et range le résultat dans la même boîte.</div>
+            <div class="exo-example">Exemple : si <code>x = 10</code>, alors <code>x = x + 5</code> fait que x vaut maintenant 15.</div>
+            <div class="exo-task">✏️ Ajoute <code>20</code> à la variable <code>tirelire</code> sur la 2ème ligne.</div>`,
+            "tirelire = 50\n",
+            "assert tirelire == 70",
+            "Écris : <code>tirelire = tirelire + 20</code>");
+
+        addEx("Raccourci",
+            `<div class="exo-concept">Écrire <code>x = x + 5</code> à chaque fois, c'est un peu long ! Python offre un <b>raccourci</b> : l'opérateur <code>+=</code>.<br><code>x += 5</code> fait exactement la même chose que <code>x = x + 5</code>.</div>
+            <div class="exo-example">Il existe aussi <code>-=</code>, <code>*=</code> et <code>/=</code> pour les autres opérations.</div>
+            <div class="exo-task">✏️ Complète le code : ajoute le nombre <code>10</code> après le <code>+=</code> pour que <code>or_collecte</code> vaille 15.</div>`,
+            "or_collecte = 5\nor_collecte += \n",
+            "assert or_collecte == 15",
+            "Complète la ligne : <code>or_collecte += 10</code>");
+
+        addEx("Modulo",
+            `<div class="exo-concept">L'opérateur <b>modulo</b> <code>%</code> donne le <b>reste</b> d'une division entière. C'est super utile pour savoir si un nombre est pair, ou pour faire des cycles !</div>
+            <div class="exo-example">Exemple : <code>10 % 3</code> → 10 ÷ 3 = 3 avec un <b>reste de 1</b>, donc le résultat est <code>1</code>.<br><code>8 % 2</code> → 8 ÷ 2 = 4, reste <code>0</code> (8 est pair !)</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Clique sur « Exécuter » puis « Vérifier » pour valider !</div>`,
+            "print(10 % 3)",
+            "assert '1' in __out",
+            "Le code est déjà bon ! Clique simplement sur Vérifier.");
+
+        addEx("Puissance",
+            `<div class="exo-concept">Pour calculer une <b>puissance</b> (un nombre multiplié par lui-même plusieurs fois), on utilise <code>**</code> (deux étoiles).</div>
+            <div class="exo-example">Exemple : <code>2 ** 3</code> = 2 × 2 × 2 = <code>8</code><br><code>5 ** 2</code> = 5 × 5 = <code>25</code></div>
+            <div class="exo-task">✏️ Complète le code pour calculer 2 à la puissance 3 : écris <code>2 ** 3</code> après le <code>=</code>.</div>`,
+            "resultat = ",
+            "assert resultat == 8",
+            "Complète la ligne : <code>resultat = 2 ** 3</code>");
+
+        addEx("Parenthèses",
+            `<div class="exo-concept">Comme en maths, Python respecte la <b>priorité des opérations</b> : la multiplication passe avant l'addition. Pour forcer un autre ordre, on utilise des <b>parenthèses</b> <code>()</code>.</div>
+            <div class="exo-example">Sans parenthèses : <code>5 + 5 * 2</code> = 5 + 10 = <code>15</code><br>Avec parenthèses : <code>(5 + 5) * 2</code> = 10 * 2 = <code>20</code></div>
+            <div class="exo-task">✏️ Ajoute des parenthèses autour de <code>5 + 5</code> pour que le résultat soit <code>20</code>.</div>`,
+            "resultat = 5 + 5 * 2\nprint(resultat)",
+            "assert resultat == 20",
+            "Écris : <code>resultat = (5 + 5) * 2</code>");
+
+        addEx("★ Calculateur de Pourboire",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu vas utiliser les maths pour calculer un pourboire au restaurant.</div>
+            <div class="exo-task">✏️ <b>Étape 1 :</b> Calcule le pourboire → <code>pourboire = repas * 0.15</code> (15% du repas)<br>
+            <b>Étape 2 :</b> Calcule le total → <code>total = repas + pourboire</code><br>
+            <b>Étape 3 :</b> Le <code>print(total)</code> est déjà écrit, il affichera le résultat.</div>`,
+            "repas = 40\npourboire = \ntotal = \nprint(total)",
+            "assert total == 46.0 and '46.0' in __out",
+            "Complète :<br><code>pourboire = repas * 0.15</code><br><code>total = repas + pourboire</code>");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 3 : CONDITIONS IF (21-30)
+        // ═══════════════════════════════════════════
+
+        addEx("Si c'est vrai",
+            `<div class="exo-concept">Le mot-clé <code>if</code> permet de n'exécuter du code que <b>si une condition est vraie</b>. La syntaxe est :<br><code>if condition:</code> (avec les deux-points !)<br>Le code indenté (décalé de 4 espaces) en dessous ne s'exécute que si la condition est vraie.</div>
+            <div class="exo-example">Exemple :<br><code>if age > 18:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Majeur')</code></div>
+            <div class="exo-task">✏️ Complète le <code>print()</code> pour afficher <code>'Gagné'</code> quand le score est supérieur à 10.</div>`,
+            "score = 15\nif score > 10:\n    print()",
+            "assert 'Gagné' in __out",
+            "Écris <code>'Gagné'</code> dans le print : <code>print('Gagné')</code>");
+
+        addEx("L'indentation",
+            `<div class="exo-concept">En Python, l'<b>indentation</b> (les espaces au début d'une ligne) est <b>obligatoire</b> ! Le code qui dépend du <code>if</code> doit être décalé de <b>4 espaces</b> vers la droite.<br>Sans indentation, Python affiche une erreur <code>IndentationError</code>.</div>
+            <div class="exo-example">❌ <code>if True:</code><br><code>print('hello')</code> → Erreur !<br><br>✅ <code>if True:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('hello')</code> → OK !</div>
+            <div class="exo-task">✏️ Ajoute <b>4 espaces</b> devant le <code>print</code> pour corriger l'erreur d'indentation.</div>`,
+            "if True:\nprint('Dedans !')",
+            "assert 'Dedans !' in __out",
+            "Ajoute 4 espaces devant print :<br><code>if True:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Dedans !')</code>");
+
+        addEx("Egalité",
+            `<div class="exo-concept">Pour <b>comparer</b> deux valeurs et vérifier si elles sont <b>égales</b>, on utilise <code>==</code> (deux signes égal).<br>⚠️ Ne confonds pas <code>=</code> (assigner une valeur) avec <code>==</code> (comparer) !</div>
+            <div class="exo-example"><code>x = 5</code> → met 5 dans x<br><code>x == 5</code> → vérifie si x vaut 5 (True ou False)</div>
+            <div class="exo-task">✏️ Remplace <code>???</code> par <code>==</code> pour vérifier si <code>code</code> est égal à <code>1234</code>.</div>`,
+            "code = 1234\nif code ??? 1234:\n    print('Ouvert')",
+            "assert 'Ouvert' in __out",
+            "Remplace <code>???</code> par <code>==</code>");
+
+        addEx("Différence",
+            `<div class="exo-concept">Pour vérifier si deux valeurs sont <b>différentes</b>, on utilise <code>!=</code> (point d'exclamation + égal). Ça veut dire « n'est pas égal à ».</div>
+            <div class="exo-example">Exemple : <code>if couleur != 'bleu':</code> → entre dans le if si la couleur n'est PAS bleu.</div>
+            <div class="exo-task">✏️ Ajoute <code>print('Alerte')</code> sur la ligne indentée (avec 4 espaces) sous le <code>if</code>.</div>`,
+            "cle = 'rouge'\nif cle != 'verte':\n    ",
+            "assert 'Alerte' in __out",
+            "Complète la ligne indentée avec : <code>print('Alerte')</code>");
+
+        addEx("Inférieur ou égal",
+            `<div class="exo-concept">Les <b>opérateurs de comparaison</b> en Python :<br>• <code>></code> supérieur à<br>• <code><</code> inférieur à<br>• <code>>=</code> supérieur ou égal<br>• <code><=</code> inférieur ou égal</div>
+            <div class="exo-task">✏️ Écris un <code>if</code> qui vérifie si <code>age</code> est inférieur ou égal à 12 (<code><=</code>), puis affiche <code>'Gratuit'</code> dans le bloc indenté.</div>`,
+            "age = 10\n",
+            "assert 'Gratuit' in __out",
+            "Écris :<br><code>if age <= 12:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Gratuit')</code>");
+
+        addEx("Le Sinon (Else)",
+            `<div class="exo-concept">Le bloc <code>else:</code> s'exécute quand la condition du <code>if</code> est <b>fausse</b>. C'est le « sinon ».<br>Il doit être au même niveau d'indentation que le <code>if</code>.</div>
+            <div class="exo-example"><code>if soleil:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Dehors')</code><br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Maison')</code></div>
+            <div class="exo-task">✏️ Remplace le commentaire par un bloc <code>else:</code> qui affiche <code>'Fermé'</code> (avec l'indentation !).</div>`,
+            "ouverte = False\nif ouverte:\n    print('Entrez')\n# Ajoute else ici\n",
+            "assert 'Fermé' in __out",
+            "Remplace le commentaire par :<br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Fermé')</code>");
+
+        addEx("If / Else Pratique",
+            `<div class="exo-concept">Entraînons-nous ! Un <code>if / else</code> complet ressemble à ça :<br><code>if condition:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;# code si vrai</code><br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;# code si faux</code></div>
+            <div class="exo-task">✏️ Écris un <code>if</code> : si <code>points >= 50</code>, affiche <code>'Bravo'</code>, sinon (<code>else</code>) affiche <code>'Dommage'</code>.<br>Comme points vaut 30, c'est <code>'Dommage'</code> qui doit s'afficher.</div>`,
+            "points = 30\n",
+            "assert 'Dommage' in __out",
+            "Écris :<br><code>if points >= 50:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Bravo')</code><br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Dommage')</code>");
+
+        addEx("Sinon Si (Elif)",
+            `<div class="exo-concept">Quand tu as <b>plus de 2 cas</b>, utilise <code>elif</code> (« else if » = « sinon si »). Tu peux en mettre autant que tu veux entre le <code>if</code> et le <code>else</code>.</div>
+            <div class="exo-example"><code>if x > 0:</code> → cas positif<br><code>elif x == 0:</code> → cas zéro<br><code>else:</code> → cas négatif</div>
+            <div class="exo-task">✏️ Décommente (enlève les <code>#</code>) les lignes du <code>elif</code> et du <code>print('Zéro')</code> pour que le code fonctionne quand x vaut 0.</div>`,
+            "x = 0\nif x > 0:\n    print('Positif')\n# elif x == 0:\n#    print('Zéro')\nelse:\n    print('Négatif')",
+            "assert 'Zéro' in __out",
+            "Enlève les <code>#</code> devant <code>elif</code> et <code>print</code> :<br><code>elif x == 0:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Zéro')</code>");
+
+        addEx("Note d'examen",
+            `<div class="exo-concept">On peut enchaîner plusieurs <code>elif</code> pour tester plusieurs conditions. Python les vérifie <b>dans l'ordre</b> et s'arrête au premier qui est vrai.</div>
+            <div class="exo-task">✏️ Écris un système de notation :<br>• Si <code>note >= 16</code> → affiche <code>'A'</code><br>• Sinon si <code>note >= 10</code> → affiche <code>'B'</code><br>• Sinon → affiche <code>'C'</code><br>Avec note = 12, le résultat attendu est <code>'B'</code>.</div>`,
+            "note = 12\n",
+            "assert 'B' in __out and 'C' not in __out",
+            "Écris :<br><code>if note >= 16:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('A')</code><br><code>elif note >= 10:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('B')</code><br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('C')</code>");
+
+        addEx("★ Le Videur",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu es le videur d'une boîte de nuit. Tu dois vérifier l'âge et le statut VIP des clients.</div>
+            <div class="exo-task">✏️ Écris les conditions dans cet ordre :<br>• Si <code>age >= 18</code> → affiche <code>'Bienvenue'</code><br>• Sinon si <code>vip == True</code> → affiche <code>'Bienvenue VIP'</code> (les VIP mineurs entrent !)<br>• Sinon → affiche <code>'Dehors'</code><br><br>Avec age=17 et vip=True, le résultat attendu est <code>'Bienvenue VIP'</code>.</div>`,
+            "age = 17\nvip = True\n# Ton code\n",
+            "assert 'Bienvenue VIP' in __out",
+            "Écris :<br><code>if age >= 18:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Bienvenue')</code><br><code>elif vip == True:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Bienvenue VIP')</code><br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Dehors')</code>");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 4 : LOGIQUE AND/OR (31-40)
+        // ═══════════════════════════════════════════
+
+        addEx("Et (And)",
+            `<div class="exo-concept">Le mot-clé <code>and</code> permet de combiner deux conditions. Les <b>deux</b> doivent être vraies pour que le résultat soit vrai.</div>
+            <div class="exo-example"><code>if age > 18 and permis == True:</code><br>→ entre dans le if seulement si la personne a plus de 18 ans <b>ET</b> a le permis.</div>
+            <div class="exo-task">✏️ Remplace <code>???</code> par la condition <code>y > 5</code> pour vérifier que x ET y sont tous les deux supérieurs à 5.</div>`,
+            "x = 10\ny = 8\nif x > 5 and ???:\n    print('Ok')",
+            "assert 'Ok' in __out",
+            "Remplace <code>???</code> par <code>y > 5</code>");
+
+        addEx("Ou (Or)",
+            `<div class="exo-concept">Le mot-clé <code>or</code> vérifie si <b>au moins une</b> des conditions est vraie. Il suffit qu'une seule soit vraie pour que le résultat soit vrai.</div>
+            <div class="exo-example"><code>if jour == 'Samedi' or jour == 'Dimanche':</code><br>→ vrai si c'est samedi <b>OU</b> dimanche.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Lis-le, comprends-le, puis clique sur Vérifier.</div>`,
+            "jour = 'Samedi'\nif jour == 'Samedi' or jour == 'Dimanche':\n    print('Week-end')",
+            "assert 'Week-end' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Non (Not)",
+            `<div class="exo-concept">Le mot-clé <code>not</code> <b>inverse</b> une condition :<br>• <code>not True</code> → <code>False</code><br>• <code>not False</code> → <code>True</code><br>C'est utile pour vérifier qu'une condition n'est PAS remplie.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Lis-le et comprends : comme <code>banni</code> est <code>False</code>, <code>not banni</code> donne <code>True</code>, donc on entre dans le if.</div>`,
+            "banni = False\nif not banni:\n    print('Jouer')",
+            "assert 'Jouer' in __out",
+            "Le code est déjà correct ! Observe comment <code>not</code> inverse la valeur.");
+
+        addEx("Combinaison",
+            `<div class="exo-concept">Rappel : <code>True and False</code> donne <code>False</code>. Pour que <code>and</code> soit vrai, il faut que les <b>deux côtés</b> soient vrais.</div>
+            <div class="exo-example">• <code>True and True</code> → <code>True</code> ✅<br>• <code>True and False</code> → <code>False</code> ❌<br>• <code>False and True</code> → <code>False</code> ❌</div>
+            <div class="exo-task">✏️ Change la valeur de <code>b</code> de <code>False</code> à <code>True</code> pour que la condition <code>a and b</code> soit vraie et affiche « Gagné ».</div>`,
+            "a = True\nb = False\nif a and b:\n    print('Gagné')",
+            "assert 'Gagné' in __out",
+            "Change <code>b = False</code> en <code>b = True</code>");
+
+        addEx("Sécurité",
+            `<div class="exo-concept">Combinons <code>and</code> dans un cas pratique : un système de login qui vérifie le mot de passe <b>ET</b> le nom d'utilisateur.</div>
+            <div class="exo-task">✏️ Écris un <code>if</code> qui vérifie que <code>mdp == 'secret'</code> <b>et</b> <code>user == 'admin'</code>, puis affiche <code>'Accès'</code>.</div>`,
+            "mdp = 'secret'\nuser = 'admin'\n",
+            "assert 'Accès' in __out",
+            "Écris :<br><code>if mdp == 'secret' and user == 'admin':</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Accès')</code>");
+
+        addEx("Limites",
+            `<div class="exo-concept">On utilise souvent <code>or</code> pour vérifier si une valeur est <b>en dehors des limites</b> acceptables.</div>
+            <div class="exo-task">✏️ Écris un <code>if</code> qui affiche <code>'Invalide'</code> si <code>age < 0</code> ou <code>age > 120</code>.<br>Comme age vaut 150, le message doit s'afficher.</div>`,
+            "age = 150\n",
+            "assert 'Invalide' in __out",
+            "Écris :<br><code>if age < 0 or age > 120:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Invalide')</code>");
+
+        addEx("Statut Joueur",
+            `<div class="exo-concept">Dans un jeu vidéo, on vérifie souvent plusieurs conditions à la fois : est-ce que le joueur est en vie ? A-t-il des munitions ?</div>
+            <div class="exo-task">✏️ Écris un <code>if</code> : si <code>en_vie</code> est vrai <b>et</b> <code>munitions > 0</code>, affiche <code>'Attaque'</code>.</div>`,
+            "en_vie = True\nmunitions = 5\n",
+            "assert 'Attaque' in __out",
+            "Écris :<br><code>if en_vie and munitions > 0:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Attaque')</code>");
+
+        addEx("Bouclier",
+            `<div class="exo-concept">Avec <code>or</code>, il suffit qu'<b>une seule</b> protection soit active pour être protégé.</div>
+            <div class="exo-task">✏️ Écris un <code>if</code> : si <code>bouclier == True</code> <b>ou</b> <code>invincible == True</code>, affiche <code>'Protégé'</code>.<br>Note : <code>bouclier</code> est False mais <code>invincible</code> est True, donc ça marche !</div>`,
+            "bouclier = False\ninvincible = True\n",
+            "assert 'Protégé' in __out",
+            "Écris :<br><code>if bouclier == True or invincible == True:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Protégé')</code>");
+
+        addEx("Le contraire",
+            `<div class="exo-concept">En Python, une <b>liste vide</b> <code>[]</code> est considérée comme <code>False</code>, et une liste avec des éléments est <code>True</code>. On peut utiliser <code>not</code> pour vérifier si une liste est vide.</div>
+            <div class="exo-example"><code>if not []:</code> → True (la liste est vide)<br><code>if not [1, 2]:</code> → False (la liste n'est pas vide)</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>not sac</code> vérifie si le sac est vide.</div>`,
+            "sac = []\nif not sac:\n    print('Vide')",
+            "assert 'Vide' in __out",
+            "Le code est déjà correct ! Observe le fonctionnement.");
+
+        addEx("★ Système d'Alarme",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu programmes un système d'alarme. Il doit vérifier si la porte est fermée et s'il n'y a pas de mouvement.</div>
+            <div class="exo-task">✏️ Écris les conditions :<br>• Si <code>porte_fermee == True</code> <b>et</b> <code>mouvement == False</code> → affiche <code>'Sécurisé'</code><br>• Sinon → affiche <code>'ALARME'</code><br><br>Avec porte=True et mouvement=True, le résultat attendu est <code>'ALARME'</code> (il y a du mouvement !).</div>`,
+            "porte_fermee = True\nmouvement = True\n",
+            "assert 'ALARME' in __out",
+            "Écris :<br><code>if porte_fermee == True and mouvement == False:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Sécurisé')</code><br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('ALARME')</code>");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 5 : LES LISTES (41-50)
+        // ═══════════════════════════════════════════
+
+        addEx("Créer une liste",
+            `<div class="exo-concept">Une <b>liste</b> permet de stocker <b>plusieurs valeurs</b> dans une seule variable. On utilise des crochets <code>[]</code> et on sépare les éléments par des virgules.</div>
+            <div class="exo-example">Exemple : <code>fruits = ['Pomme', 'Banane', 'Kiwi']</code><br>Cette liste contient 3 éléments.</div>
+            <div class="exo-task">✏️ Modifie la liste <code>inventaire</code> pour qu'elle contienne <code>'Epee'</code> et <code>'Potion'</code> (entre les crochets, séparés par une virgule).</div>`,
+            "inventaire = []",
+            "assert type(inventaire) == list and 'Epee' in inventaire",
+            "Écris : <code>inventaire = ['Epee', 'Potion']</code>");
+
+        addEx("Accéder (Index 0)",
+            `<div class="exo-concept">Chaque élément d'une liste a un <b>numéro</b> (appelé « index »). ⚠️ En Python, ça commence à <b>0</b>, pas à 1 !<br>• Index 0 = 1er élément<br>• Index 1 = 2ème élément<br>• Index 2 = 3ème élément</div>
+            <div class="exo-example"><code>couleurs = ['Rouge', 'Vert', 'Bleu']</code><br><code>couleurs[0]</code> → <code>'Rouge'</code><br><code>couleurs[1]</code> → <code>'Vert'</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que <code>couleurs[0]</code> donne le premier élément.</div>`,
+            "couleurs = ['Rouge', 'Vert', 'Bleu']\nprint(couleurs[0])",
+            "assert 'Rouge' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Dernier élément",
+            `<div class="exo-concept">Astuce Python : l'index <code>-1</code> donne le <b>dernier élément</b> de la liste, <code>-2</code> l'avant-dernier, etc. Très pratique quand on ne connaît pas la taille de la liste !</div>
+            <div class="exo-example"><code>animaux = ['Chat', 'Chien', 'Ours']</code><br><code>animaux[-1]</code> → <code>'Ours'</code> (le dernier)</div>
+            <div class="exo-task">✏️ Remplace <code>???</code> par <code>-1</code> pour afficher le dernier animal de la liste.</div>`,
+            "animaux = ['Chat', 'Chien', 'Ours']\nprint(animaux[???])",
+            "assert 'Ours' in __out",
+            "Remplace <code>???</code> par <code>-1</code>");
+
+        addEx("Modifier une liste",
+            `<div class="exo-concept">On peut <b>modifier</b> un élément d'une liste en utilisant son index et le signe <code>=</code>.</div>
+            <div class="exo-example">Exemple : <code>fruits[0] = 'Fraise'</code> remplace le premier élément par 'Fraise'.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment on remplace 'Pomme' (index 0) par 'Fraise'.</div>`,
+            "fruits = ['Pomme', 'Banane']\nfruits[0] = 'Fraise'",
+            "assert fruits[0] == 'Fraise'",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Ajouter (Append)",
+            `<div class="exo-concept">Pour <b>ajouter</b> un élément à la fin d'une liste, on utilise la méthode <code>.append()</code>. C'est comme ajouter un objet dans un sac à dos.</div>
+            <div class="exo-example"><code>sac = ['Épée']</code><br><code>sac.append('Potion')</code><br>→ sac contient maintenant <code>['Épée', 'Potion']</code></div>
+            <div class="exo-task">✏️ Utilise <code>noms.append('Bob')</code> pour ajouter Bob à la liste.</div>`,
+            "noms = ['Alice']\n",
+            "assert 'Bob' in noms",
+            "Écris : <code>noms.append('Bob')</code>");
+
+        addEx("Retirer (Pop)",
+            `<div class="exo-concept">Pour <b>retirer</b> le dernier élément d'une liste, on utilise <code>.pop()</code>. L'élément est enlevé de la liste et peut être récupéré.</div>
+            <div class="exo-example"><code>cartes = ['As', 'Roi', 'Dame']</code><br><code>cartes.pop()</code> → retire 'Dame'<br>→ cartes = <code>['As', 'Roi']</code></div>
+            <div class="exo-task">✏️ Utilise <code>cartes.pop()</code> pour retirer le dernier élément de la liste.</div>`,
+            "cartes = ['As', 'Roi', 'Dame']\n",
+            "assert len(cartes) == 2",
+            "Écris : <code>cartes.pop()</code>");
+
+        addEx("Taille de la liste",
+            `<div class="exo-concept">La fonction <code>len()</code> (de « length » = longueur en anglais) donne le <b>nombre d'éléments</b> d'une liste.</div>
+            <div class="exo-example"><code>equipe = ['Mage', 'Guerrier']</code><br><code>len(equipe)</code> → <code>2</code></div>
+            <div class="exo-task">✏️ Affiche le nombre d'éléments de <code>team</code> avec <code>print(len(team))</code>.</div>`,
+            "team = ['Mage', 'Guerrier', 'Voleur']\n",
+            "assert '3' in __out",
+            "Écris : <code>print(len(team))</code>");
+
+        addEx("Vérifier présence",
+            `<div class="exo-concept">Le mot-clé <code>in</code> permet de vérifier si un élément <b>existe dans une liste</b>. Il retourne <code>True</code> ou <code>False</code>.</div>
+            <div class="exo-example"><code>'Pomme' in ['Pomme', 'Banane']</code> → <code>True</code><br><code>'Kiwi' in ['Pomme', 'Banane']</code> → <code>False</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>in</code> vérifie la présence de 'Cle' dans le sac.</div>`,
+            "sac = ['Livre', 'Cle']\nif 'Cle' in sac:\n    print('Trouvée')",
+            "assert 'Trouvée' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Liste mixte",
+            `<div class="exo-concept">En Python, une liste peut contenir des éléments de <b>types différents</b> : nombres, textes, booléens... tout en même temps !</div>
+            <div class="exo-example"><code>mix = [42, 'Hello', True, 3.14]</code> → c'est valide !</div>
+            <div class="exo-task">✏️ Crée une variable <code>mix</code> contenant exactement : <code>[1, 'Deux', True]</code></div>`,
+            "",
+            "assert mix == [1, 'Deux', True]",
+            "Écris exactement : <code>mix = [1, 'Deux', True]</code>");
+
+        addEx("★ Gestion d'Inventaire",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu gères l'inventaire d'un personnage de jeu.</div>
+            <div class="exo-task">✏️ <b>Étape 1 :</b> Ajoute <code>'Arc'</code> à la liste <code>stuff</code> avec <code>stuff.append('Arc')</code><br>
+            <b>Étape 2 :</b> Retire le dernier élément avec <code>stuff.pop()</code> (ça retire 'Arc' qu'on vient d'ajouter)<br>
+            <b>Étape 3 :</b> Affiche la taille de la liste avec <code>print(len(stuff))</code><br><br>Au final, la liste doit contenir 'Arc' et avoir 2 éléments... 🤔 Attends ! pop() retire le dernier. Réfléchis à l'ordre !</div>`,
+            "stuff = ['Epee', 'Bouclier']\n",
+            "assert 'Arc' in stuff and len(stuff) == 2",
+            "L'astuce : ajoute Arc, puis pop retire le dernier (Bouclier, pas Arc !)... Non, pop retire Arc car on vient de l'ajouter en dernier. Il faut ajouter Arc, pop retire Arc... Hmm. Ajoute Arc → ['Epee','Bouclier','Arc'], pop → retire 'Arc'... Il faut changer l'ordre : <code>stuff.pop()</code> d'abord (retire 'Bouclier'), puis <code>stuff.append('Arc')</code>.");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 6 : BOUCLES FOR (51-60)
+        // ═══════════════════════════════════════════
+
+        addEx("Pour chaque élément",
+            `<div class="exo-concept">La boucle <code>for</code> permet de <b>parcourir</b> chaque élément d'une liste, un par un. La syntaxe est :<br><code>for element in liste:</code><br>À chaque tour de boucle, <code>element</code> prend la valeur de l'élément suivant.</div>
+            <div class="exo-example"><code>for fruit in ['Kiwi', 'Mangue']:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print(fruit)</code><br>→ Affiche « Kiwi » puis « Mangue »</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment la boucle affiche chaque fruit.</div>`,
+            "fruits = ['Kiwi', 'Mangue']\nfor fruit in fruits:\n    print(fruit)",
+            "assert 'Kiwi' in __out and 'Mangue' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Répéter N fois",
+            `<div class="exo-concept">Pour répéter une action un certain <b>nombre de fois</b>, on utilise <code>range(n)</code> dans une boucle for. <code>range(3)</code> donne les nombres 0, 1, 2 (3 tours de boucle).</div>
+            <div class="exo-example"><code>for i in range(3):</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Salut')</code><br>→ Affiche « Salut » 3 fois</div>
+            <div class="exo-task">✏️ Écris une boucle <code>for i in range(3):</code> qui affiche <code>'Hello'</code> à chaque tour.</div>`,
+            "",
+            "assert __out.count('Hello') == 3",
+            "Écris :<br><code>for i in range(3):</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Hello')</code>");
+
+        addEx("Range avec début/fin",
+            `<div class="exo-concept"><code>range(début, fin)</code> génère des nombres de <code>début</code> jusqu'à <code>fin - 1</code> (le dernier est exclu !).</div>
+            <div class="exo-example"><code>range(1, 4)</code> → 1, 2, 3 (pas 4 !)<br><code>range(5, 8)</code> → 5, 6, 7</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que <code>range(1, 4)</code> donne bien 1, 2, 3.</div>`,
+            "for i in range(1, 4):\n    print(i)",
+            "assert '1' in __out and '2' in __out and '3' in __out and '4' not in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Range avec pas",
+            `<div class="exo-concept"><code>range(début, fin, pas)</code> permet de compter avec un <b>intervalle</b> (le « pas »). Par exemple, de 2 en 2.</div>
+            <div class="exo-example"><code>range(0, 10, 3)</code> → 0, 3, 6, 9 (de 3 en 3)</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que <code>range(0, 5, 2)</code> compte de 2 en 2 : 0, 2, 4.</div>`,
+            "for i in range(0, 5, 2):\n    print(i)",
+            "assert '0' in __out and '2' in __out and '4' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Faire la somme",
+            `<div class="exo-concept">Un usage très courant des boucles : <b>additionner</b> tous les éléments d'une liste. On utilise une variable « accumulateur » (ici <code>total</code>) qu'on augmente à chaque tour.</div>
+            <div class="exo-example">On commence avec <code>total = 0</code>, puis à chaque tour on ajoute l'élément courant avec <code>total += p</code>.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>total += p</code> additionne chaque prix.</div>`,
+            "prix = [10, 20, 30]\ntotal = 0\nfor p in prix:\n    total += p\nprint(total)",
+            "assert '60' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Trouver le max",
+            `<div class="exo-concept">Pour trouver la <b>plus grande valeur</b> d'une liste, on compare chaque élément avec le maximum actuel. Si l'élément est plus grand, il devient le nouveau maximum.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe la logique : à chaque tour, si <code>n > max_note</code>, on met à jour <code>max_note</code>.</div>`,
+            "notes = [12, 18, 14]\nmax_note = 0\nfor n in notes:\n    if n > max_note:\n        max_note = n\nprint(max_note)",
+            "assert '18' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Sauter (Continue)",
+            `<div class="exo-concept">Le mot-clé <code>continue</code> permet de <b>sauter</b> le reste du tour de boucle actuel et de passer directement au tour suivant.</div>
+            <div class="exo-example"><code>for i in range(4):</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;if i == 2:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue</code> ← saute le 2<br><code>&nbsp;&nbsp;&nbsp;&nbsp;print(i)</code><br>→ Affiche 0, 1, 3 (pas 2 !)</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>continue</code> saute l'affichage quand i vaut 2.</div>`,
+            "for i in range(4):\n    if i == 2:\n        continue\n    print(i)",
+            "assert '1' in __out and '3' in __out and '2' not in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Stopper (Break)",
+            `<div class="exo-concept">Le mot-clé <code>break</code> permet d'<b>arrêter complètement</b> une boucle avant qu'elle ait fait tous ses tours. On sort immédiatement de la boucle.</div>
+            <div class="exo-example"><code>for i in range(5):</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;if i == 3:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break</code> ← stop !<br><code>&nbsp;&nbsp;&nbsp;&nbsp;print(i)</code><br>→ Affiche 0, 1, 2 (s'arrête à 3)</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>break</code> arrête la boucle quand i vaut 3.</div>`,
+            "for i in range(5):\n    if i == 3:\n        break\n    print(i)",
+            "assert '0' in __out and '2' in __out and '3' not in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Filtrer",
+            `<div class="exo-concept">On peut combiner <code>for</code> et <code>if</code> pour <b>filtrer</b> les éléments d'une liste. C'est très utile pour n'afficher que ce qui nous intéresse.</div>
+            <div class="exo-example">Rappel : <code>n % 2 == 0</code> est vrai quand n est <b>pair</b>.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment on n'affiche que les nombres pairs de la liste.</div>`,
+            "nombres = [1, 2, 3, 4]\nfor n in nombres:\n    if n % 2 == 0:\n        print(n)",
+            "assert '2' in __out and '4' in __out and '3' not in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("★ Analyseur de Courses",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu analyses le panier de courses pour savoir si tu dépasses le budget.</div>
+            <div class="exo-task">✏️ <b>Étape 1 :</b> Crée <code>total = 0</code><br>
+            <b>Étape 2 :</b> Fais une boucle <code>for p in panier:</code> et ajoute chaque prix au total (<code>total += p</code>)<br>
+            <b>Étape 3 :</b> Après la boucle, si <code>total > 5.0</code>, affiche <code>'Trop cher'</code>, sinon affiche <code>'Ok'</code></div>`,
+            "panier = [2.5, 3.0, 1.5]\n",
+            "assert 'Trop cher' in __out",
+            "Écris :<br><code>total = 0</code><br><code>for p in panier:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;total += p</code><br><code>if total > 5.0:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Trop cher')</code><br><code>else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Ok')</code>");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 7 : BOUCLES WHILE (61-70)
+        // ═══════════════════════════════════════════
+
+        addEx("Tant que",
+            `<div class="exo-concept">La boucle <code>while</code> répète du code <b>tant qu'une condition est vraie</b>. Contrairement à <code>for</code>, elle ne compte pas : elle vérifie une condition à chaque tour.<br>⚠️ Si la condition ne devient jamais fausse, la boucle tourne à l'infini !</div>
+            <div class="exo-example"><code>while x < 3:</code> → continue tant que x est inférieur à 3<br>Il faut penser à modifier x dans la boucle pour éviter une boucle infinie !</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>x += 1</code> empêche la boucle infinie.</div>`,
+            "x = 0\nwhile x < 3:\n    print(x)\n    x += 1",
+            "assert '0' in __out and '1' in __out and '2' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Décompte",
+            `<div class="exo-concept">Un compte à rebours classique avec <code>while</code> : on affiche la valeur, puis on la diminue de 1 à chaque tour.</div>
+            <div class="exo-task">✏️ Dans la boucle <code>while</code>, ajoute deux lignes :<br>1. <code>print(temps)</code> pour afficher la valeur<br>2. <code>temps -= 1</code> pour diminuer de 1</div>`,
+            "temps = 3\nwhile temps > 0:\n",
+            "assert '3' in __out and '1' in __out and temps == 0",
+            "Ajoute dans la boucle (avec 4 espaces) :<br><code>&nbsp;&nbsp;&nbsp;&nbsp;print(temps)</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;temps -= 1</code>");
+
+        addEx("Mot de passe",
+            `<div class="exo-concept">On utilise souvent <code>while</code> pour répéter une action <b>jusqu'à ce qu'une condition soit remplie</b>. Ici, on simule une vérification de mot de passe.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe : la boucle tourne tant que <code>mdp != 'secret'</code>. Au 2ème essai, le mot de passe est correct et la boucle s'arrête.</div>`,
+            "mdp = 'faux'\nessais = 0\nwhile mdp != 'secret':\n    essais += 1\n    if essais == 2: mdp = 'secret'\nprint(essais)",
+            "assert '2' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Boucle Infinie + Break",
+            `<div class="exo-concept"><code>while True:</code> crée une boucle qui tourne <b>indéfiniment</b>. Pour en sortir, on utilise <code>break</code>. C'est un pattern très courant en programmation !</div>
+            <div class="exo-example"><code>while True:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;# faire quelque chose</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;if condition:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break</code> ← sort de la boucle</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>break</code> arrête la boucle infinie quand x vaut 2.</div>`,
+            "x = 0\nwhile True:\n    if x == 2:\n        break\n    x += 1",
+            "assert x == 2",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Continuer à jouer",
+            `<div class="exo-concept">On peut utiliser un <b>booléen</b> comme condition de boucle. La boucle tourne tant que la variable est <code>True</code>.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe : <code>jouer</code> est True au début. Après 3 tours, on met <code>jouer = False</code> et la boucle s'arrête.</div>`,
+            "jouer = True\ntours = 0\nwhile jouer:\n    tours += 1\n    if tours == 3:\n        jouer = False\nprint(tours)",
+            "assert '3' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Vider la liste",
+            `<div class="exo-concept">Rappel : en Python, une liste vide est considérée comme <code>False</code> et une liste avec des éléments comme <code>True</code>. Donc <code>while sac:</code> tourne tant que le sac n'est pas vide.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>pop()</code> retire un élément à chaque tour jusqu'à ce que la liste soit vide.</div>`,
+            "sac = ['A', 'B']\nwhile sac:\n    sac.pop()",
+            "assert len(sac) == 0",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Simulation Combat",
+            `<div class="exo-concept">Les boucles <code>while</code> sont parfaites pour simuler des <b>combats</b> dans les jeux : on attaque tant que le boss a des PV (points de vie).</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe le combat : le boss a 20 PV, on retire 10 à chaque tour. Après 2 tours, il est à 0 PV.</div>`,
+            "pv_boss = 20\nwhile pv_boss > 0:\n    pv_boss -= 10\n    print(pv_boss)",
+            "assert '10' in __out and '0' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Saisie Validée",
+            `<div class="exo-concept">On utilise <code>while</code> pour s'assurer qu'une valeur atteint un <b>seuil minimum</b>. C'est comme remplir un formulaire : on continue tant que la valeur n'est pas suffisante.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe : <code>val</code> commence à 2, on ajoute 5 à chaque tour (2→7→12). À 12, la condition <code>val < 10</code> est fausse, donc on sort.</div>`,
+            "val = 2\nwhile val < 10:\n    val += 5\nprint(val)",
+            "assert '12' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Plafond",
+            `<div class="exo-concept">Ici on multiplie une valeur tant qu'elle n'atteint pas un plafond. C'est une <b>croissance exponentielle</b> : 5 → 10 → 20 → 40 → 80 (80 n'est plus < 50, donc on sort).</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment x double à chaque tour grâce à <code>x *= 2</code>.</div>`,
+            "x = 5\nwhile x < 50:\n    x *= 2\nprint(x)",
+            "assert '80' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("★ Simulateur de Batterie",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu simules la décharge d'une batterie de téléphone.</div>
+            <div class="exo-task">✏️ <b>Étape 1 :</b> Écris <code>while batterie > 0:</code><br>
+            <b>Étape 2 :</b> Dans la boucle, affiche <code>'Utilisation'</code> avec print<br>
+            <b>Étape 3 :</b> Toujours dans la boucle, retire 15 : <code>batterie -= 15</code><br>
+            <b>Étape 4 :</b> Après la boucle (sans indentation), affiche <code>'Vide'</code><br><br>Avec batterie = 30 : tour 1 (30→15, affiche « Utilisation »), tour 2 (15→0, affiche « Utilisation »), puis sort et affiche « Vide ».</div>`,
+            "batterie = 30\n",
+            "assert __out.count('Utilisation') == 2 and 'Vide' in __out",
+            "Écris :<br><code>while batterie > 0:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print('Utilisation')</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;batterie -= 15</code><br><code>print('Vide')</code>");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 8 : LES FONCTIONS (71-80)
+        // ═══════════════════════════════════════════
+
+        addEx("Définir une fonction",
+            `<div class="exo-concept">Une <b>fonction</b> est un bloc de code réutilisable auquel on donne un nom. On la crée avec <code>def</code> :<br><code>def mon_nom():</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;# code de la fonction</code><br>Pour l'utiliser (l'« appeler »), on écrit son nom suivi de parenthèses : <code>mon_nom()</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe : la fonction <code>dire_bonjour()</code> est définie, puis appelée.</div>`,
+            "def dire_bonjour():\n    print('Hello')\ndire_bonjour()",
+            "assert 'Hello' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Arguments",
+            `<div class="exo-concept">On peut passer des <b>informations</b> à une fonction grâce aux <b>arguments</b> (ou paramètres). Ils se mettent entre les parenthèses.</div>
+            <div class="exo-example"><code>def saluer(nom):</code> → la fonction attend un argument <code>nom</code><br><code>saluer('Zelda')</code> → appelle la fonction avec nom = 'Zelda'</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment l'argument <code>nom</code> est utilisé dans la fonction.</div>`,
+            "def saluer(nom):\n    print('Salut ' + nom)\nsaluer('Zelda')",
+            "assert 'Salut Zelda' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Le mot-clé Return",
+            `<div class="exo-concept">Au lieu d'afficher un résultat avec <code>print()</code>, une fonction peut <b>renvoyer</b> une valeur avec <code>return</code>. La valeur peut ensuite être stockée dans une variable ou affichée.</div>
+            <div class="exo-example"><code>def double(x):</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;return x * 2</code><br><code>resultat = double(5)</code> → resultat vaut 10</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que <code>return a + b</code> renvoie la somme au lieu de l'afficher.</div>`,
+            "def somme(a, b):\n    return a + b\nres = somme(5, 5)\nprint(res)",
+            "assert '10' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Multiples arguments",
+            `<div class="exo-concept">Une fonction peut avoir <b>plusieurs arguments</b>, séparés par des virgules. L'ordre compte : le 1er argument va dans le 1er paramètre, etc.</div>
+            <div class="exo-example"><code>def add(a, b, c):</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;return a + b + c</code><br><code>add(1, 2, 3)</code> → a=1, b=2, c=3, résultat=6</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe : <code>calcul(2, 3, 4)</code> fait 2*3+4 = 10.</div>`,
+            "def calcul(x, y, z):\n    return x * y + z\nprint(calcul(2, 3, 4))",
+            "assert '10' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Réutiliser",
+            `<div class="exo-concept">L'avantage d'une fonction, c'est qu'on peut l'<b>appeler plusieurs fois</b> ! On peut même passer le résultat d'une fonction comme argument d'une autre.</div>
+            <div class="exo-example"><code>double(5)</code> → 10<br><code>double(double(5))</code> → <code>double(10)</code> → 20</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment on appelle <code>double</code> deux fois pour doubler 5 puis doubler le résultat.</div>`,
+            "def double(x):\n    return x * 2\nres1 = double(5)\nres2 = double(res1)\nprint(res2)",
+            "assert '20' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Paramètre par défaut",
+            `<div class="exo-concept">On peut donner une <b>valeur par défaut</b> à un paramètre. Si l'argument n'est pas fourni lors de l'appel, la valeur par défaut est utilisée.</div>
+            <div class="exo-example"><code>def bonjour(nom='Monde'):</code><br><code>bonjour()</code> → nom = 'Monde' (valeur par défaut)<br><code>bonjour('Alice')</code> → nom = 'Alice'</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que <code>func()</code> sans argument utilise la valeur par défaut 10.</div>`,
+            "def func(x=10):\n    return x\nprint(func())",
+            "assert '10' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Fonction booléenne",
+            `<div class="exo-concept">Une fonction peut retourner <code>True</code> ou <code>False</code>. C'est très utile pour créer des <b>vérifications réutilisables</b>.</div>
+            <div class="exo-example"><code>def est_pair(n):</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;return n % 2 == 0</code><br>Retourne True si n est pair, False sinon.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que <code>age >= 18</code> est une expression qui vaut True ou False, et on la retourne directement.</div>`,
+            "def est_majeur(age):\n    return age >= 18\nprint(est_majeur(20))",
+            "assert 'True' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Variables Locales",
+            `<div class="exo-concept">Les variables créées <b>à l'intérieur</b> d'une fonction n'existent que dans cette fonction. On dit qu'elles sont <b>locales</b>. Elles disparaissent dès que la fonction finit.</div>
+            <div class="exo-example"><code>def test():</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;x = 5</code> → x n'existe que dans test()<br><code>print(x)</code> → ❌ Erreur ! x n'existe pas ici</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que <code>a</code> est créée dans la fonction et retournée avec <code>return</code>.</div>`,
+            "def test():\n    a = 5\n    return a\nprint(test())",
+            "assert '5' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Fonction Liste",
+            `<div class="exo-concept">On peut passer une <b>liste</b> comme argument à une fonction. À l'intérieur, on manipule la liste normalement (index, len, etc.).</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que la fonction <code>premier(liste)</code> retourne <code>liste[0]</code>, le premier élément.</div>`,
+            "def premier(liste):\n    return liste[0]\nprint(premier([9, 8, 7]))",
+            "assert '9' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("★ Créateur d'Acronymes",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu crées une fonction qui génère des acronymes. En Python, on accède à une lettre d'un mot comme dans une liste : <code>mot[0]</code> donne la première lettre.</div>
+            <div class="exo-example"><code>'Python'[0]</code> → <code>'P'</code><br><code>'Hello'[0] + 'World'[0]</code> → <code>'HW'</code></div>
+            <div class="exo-task">✏️ Complète la fonction pour qu'elle retourne la 1ère lettre de <code>mot1</code> + la 1ère lettre de <code>mot2</code>.<br>Remplace <code>pass</code> par <code>return mot1[0] + mot2[0]</code>.</div>`,
+            "def acronyme(mot1, mot2):\n    # Ton code retourne les 1ères lettres collées\n    pass\n\nprint(acronyme('New', 'York'))",
+            "assert acronyme('New', 'York') == 'NY'",
+            "Remplace le commentaire et <code>pass</code> par :<br><code>&nbsp;&nbsp;&nbsp;&nbsp;return mot1[0] + mot2[0]</code>");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 9 : DICTIONNAIRES (81-90)
+        // ═══════════════════════════════════════════
+
+        addEx("Dictionnaire vide",
+            `<div class="exo-concept">Un <b>dictionnaire</b> stocke des données sous forme de paires <b>clé → valeur</b> (comme un vrai dictionnaire : mot → définition). On le crée avec des accolades <code>{}</code>.</div>
+            <div class="exo-example">Dictionnaire vide : <code>dico = {}</code><br>Avec des données : <code>dico = {'nom': 'Alice', 'age': 25}</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe la syntaxe d'un dictionnaire vide <code>{}</code>.</div>`,
+            "joueur = {}",
+            "assert type(joueur) == dict",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Clé et Valeur",
+            `<div class="exo-concept">Pour accéder à une valeur dans un dictionnaire, on utilise sa <b>clé</b> entre crochets : <code>dico['clé']</code>.</div>
+            <div class="exo-example"><code>score = {'Alice': 10, 'Bob': 20}</code><br><code>score['Alice']</code> → <code>10</code><br><code>score['Bob']</code> → <code>20</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>score['Alice']</code> accède au score d'Alice.</div>`,
+            "score = {'Alice': 10}\nprint(score['Alice'])",
+            "assert '10' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Ajouter une donnée",
+            `<div class="exo-concept">Pour <b>ajouter</b> une nouvelle paire clé-valeur, on écrit simplement :<br><code>dico['nouvelle_clé'] = valeur</code></div>
+            <div class="exo-example"><code>contacts = {}</code><br><code>contacts['Alice'] = '0601'</code><br>→ contacts contient maintenant {'Alice': '0601'}</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment on ajoute Bob au dictionnaire.</div>`,
+            "score = {'Alice': 10}\nscore['Bob'] = 20",
+            "assert score['Bob'] == 20",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Modifier",
+            `<div class="exo-concept">Pour <b>modifier</b> la valeur d'une clé existante, c'est la même syntaxe que pour ajouter : <code>dico['clé'] = nouvelle_valeur</code>. La clé existe déjà, donc sa valeur est remplacée.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment on change le score d'Alice de 10 à 15.</div>`,
+            "score = {'Alice': 10}\nscore['Alice'] = 15",
+            "assert score['Alice'] == 15",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Vérifier une clé",
+            `<div class="exo-concept">Avant d'accéder à une clé, il vaut mieux vérifier qu'elle <b>existe</b> avec <code>in</code>. Sinon, Python affiche une erreur <code>KeyError</code>.</div>
+            <div class="exo-example"><code>'Alice' in score</code> → <code>True</code> si la clé 'Alice' existe<br><code>'Bob' in score</code> → <code>False</code> si la clé 'Bob' n'existe pas</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>in</code> vérifie l'existence de la clé 'Alice'.</div>`,
+            "score = {'Alice': 10}\nif 'Alice' in score:\n    print('Présente')",
+            "assert 'Présente' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Supprimer (del)",
+            `<div class="exo-concept">Pour <b>supprimer</b> une paire clé-valeur d'un dictionnaire, on utilise <code>del</code> suivi de <code>dico['clé']</code>.</div>
+            <div class="exo-example"><code>del score['Bob']</code> → supprime la clé 'Bob' et sa valeur.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>del</code> supprime Bob du dictionnaire.</div>`,
+            "score = {'Alice': 10, 'Bob': 5}\ndel score['Bob']",
+            "assert 'Bob' not in score",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Boucler sur les clés",
+            `<div class="exo-concept">On peut parcourir un dictionnaire avec <code>for</code>. Par défaut, on parcourt les <b>clés</b>.</div>
+            <div class="exo-example"><code>for cle in dico:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print(cle)</code><br>→ Affiche chaque clé du dictionnaire.</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment la boucle affiche les clés 'a' et 'b'.</div>`,
+            "dico = {'a': 1, 'b': 2}\nfor cle in dico:\n    print(cle)",
+            "assert 'a' in __out and 'b' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Boucler sur les valeurs",
+            `<div class="exo-concept">Pour parcourir les <b>valeurs</b> d'un dictionnaire, on utilise <code>.values()</code>.</div>
+            <div class="exo-example"><code>for val in dico.values():</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;print(val)</code><br>→ Affiche chaque valeur (pas les clés).</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que <code>.values()</code> donne les valeurs 1 et 2.</div>`,
+            "dico = {'a': 1, 'b': 2}\nfor val in dico.values():\n    print(val)",
+            "assert '1' in __out and '2' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Liste de dicts",
+            `<div class="exo-concept">On peut mettre des dictionnaires dans une liste ! C'est très courant pour stocker des données structurées (comme une base de données).</div>
+            <div class="exo-example"><code>persos = [{'nom': 'Héros'}, {'nom': 'Boss'}]</code><br><code>persos[0]</code> → le 1er dictionnaire<br><code>persos[0]['nom']</code> → <code>'Héros'</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment on accède au nom du premier ennemi : d'abord l'index de la liste, puis la clé du dictionnaire.</div>`,
+            "ennemis = [{'nom': 'Gobelin'}, {'nom': 'Orc'}]\nprint(ennemis[0]['nom'])",
+            "assert 'Gobelin' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("★ Annuaire Téléphonique",
+            `<div class="exo-concept">🏆 <b>Mini-projet !</b> Tu crées une fonction de recherche dans un annuaire (dictionnaire).</div>
+            <div class="exo-task">✏️ Complète la fonction <code>chercher(annuaire, nom)</code> :<br>
+            <b>Étape 1 :</b> Vérifie si <code>nom</code> est dans <code>annuaire</code> avec <code>if nom in annuaire:</code><br>
+            <b>Étape 2 :</b> Si oui, retourne le numéro : <code>return annuaire[nom]</code><br>
+            <b>Étape 3 :</b> Sinon (<code>else:</code>), retourne <code>'Inconnu'</code></div>`,
+            "def chercher(annuaire, nom):\n    # Ton code\n    pass\n\ncontacts = {'Paul': '0601', 'Lea': '0602'}\nprint(chercher(contacts, 'Lea'))",
+            "assert chercher({'a':'1'}, 'a') == '1' and chercher({}, 'b') == 'Inconnu'",
+            "Remplace le commentaire et pass par :<br><code>&nbsp;&nbsp;&nbsp;&nbsp;if nom in annuaire:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return annuaire[nom]</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;else:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 'Inconnu'</code>");
+
+        // ═══════════════════════════════════════════
+        // NIVEAU 10 : MODULES & MINI-PROJETS (91-100)
+        // ═══════════════════════════════════════════
+
+        addEx("Importer un module",
+            `<div class="exo-concept">Un <b>module</b> est une bibliothèque de fonctions déjà faites. Pour l'utiliser, on l'<b>importe</b> avec <code>import</code>. Le module <code>math</code> contient des fonctions et constantes mathématiques.</div>
+            <div class="exo-example"><code>import math</code> → charge le module<br><code>math.pi</code> → le nombre π (3.14159...)</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment on importe <code>math</code> et affiche <code>math.pi</code>.</div>`,
+            "import math\nprint(math.pi)",
+            "assert '3.14' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Racine carrée",
+            `<div class="exo-concept">La fonction <code>math.sqrt()</code> (de « square root ») calcule la <b>racine carrée</b> d'un nombre.</div>
+            <div class="exo-example"><code>math.sqrt(9)</code> → <code>3.0</code><br><code>math.sqrt(16)</code> → <code>4.0</code></div>
+            <div class="exo-task">✏️ Affiche la racine carrée de 16 avec <code>print(math.sqrt(16))</code>.</div>`,
+            "import math\n",
+            "assert '4.0' in __out",
+            "Écris : <code>print(math.sqrt(16))</code>");
+
+        addEx("Le module Random",
+            `<div class="exo-concept">Le module <code>random</code> permet de générer des <b>nombres aléatoires</b>. La fonction <code>random.randint(a, b)</code> donne un entier aléatoire entre a et b (inclus).</div>
+            <div class="exo-example"><code>random.randint(1, 6)</code> → simule un dé (1 à 6)</div>
+            <div class="exo-task">✏️ Affiche un nombre aléatoire entre 1 et 10 avec <code>print(random.randint(1, 10))</code>.</div>`,
+            "import random\n",
+            "assert any(str(i) in __out for i in range(1, 11))",
+            "Écris : <code>print(random.randint(1, 10))</code>");
+
+        addEx("Choix au hasard",
+            `<div class="exo-concept">La fonction <code>random.choice(liste)</code> choisit un élément <b>au hasard</b> dans une liste. Très pratique pour les jeux !</div>
+            <div class="exo-example"><code>random.choice(['Pierre', 'Papier', 'Ciseaux'])</code> → un des trois au hasard</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. À chaque exécution, une couleur différente sera affichée !</div>`,
+            "import random\ncouleurs = ['Rouge', 'Bleu', 'Vert']\nprint(random.choice(couleurs))",
+            "assert any(c in __out for c in ['Rouge', 'Bleu', 'Vert'])",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Mélanger (Shuffle)",
+            `<div class="exo-concept">La fonction <code>random.shuffle(liste)</code> <b>mélange</b> les éléments d'une liste sur place (comme mélanger un paquet de cartes).</div>
+            <div class="exo-example">⚠️ <code>shuffle</code> modifie la liste directement, il ne retourne rien !</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe que la liste est mélangée à chaque exécution.</div>`,
+            "import random\ncartes = [1, 2, 3, 4]\nrandom.shuffle(cartes)\nprint(cartes)",
+            "assert '1' in __out and '4' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Méthode de string",
+            `<div class="exo-concept">Les chaînes de caractères ont des <b>méthodes</b> (fonctions intégrées). <code>.upper()</code> transforme tout en <b>MAJUSCULES</b>.</div>
+            <div class="exo-example"><code>'hello'.upper()</code> → <code>'HELLO'</code><br><code>'hello'.lower()</code> → <code>'hello'</code> (minuscules)</div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>.upper()</code> met le texte en majuscules.</div>`,
+            "texte = 'bonjour'\nprint(texte.upper())",
+            "assert 'BONJOUR' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Méthode de string 2",
+            `<div class="exo-concept">La méthode <code>.replace(ancien, nouveau)</code> <b>remplace</b> toutes les occurrences d'un texte par un autre.</div>
+            <div class="exo-example"><code>'Bonjour'.replace('jour', 'soir')</code> → <code>'Bonsoir'</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>.replace('a', 'e')</code> change tous les 'a' en 'e'.</div>`,
+            "texte = 'papa'\nprint(texte.replace('a', 'e'))",
+            "assert 'pepe' in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Séparer un texte",
+            `<div class="exo-concept">La méthode <code>.split(séparateur)</code> découpe un texte en <b>liste de mots</b> en utilisant le séparateur.</div>
+            <div class="exo-example"><code>'un-deux-trois'.split('-')</code> → <code>['un', 'deux', 'trois']</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>.split(' ')</code> découpe la phrase en mots (en utilisant l'espace comme séparateur).</div>`,
+            "phrase = 'un deux trois'\nmots = phrase.split(' ')\nprint(mots)",
+            "assert \"['un', 'deux', 'trois']\" in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("Trier une liste",
+            `<div class="exo-concept">La méthode <code>.sort()</code> trie une liste dans l'ordre <b>croissant</b> (du plus petit au plus grand). Elle modifie la liste directement.</div>
+            <div class="exo-example"><code>nombres = [3, 1, 2]</code><br><code>nombres.sort()</code><br>→ nombres = <code>[1, 2, 3]</code></div>
+            <div class="exo-task">✏️ Le code est déjà écrit. Observe comment <code>.sort()</code> met les scores dans l'ordre.</div>`,
+            "scores = [5, 1, 10]\nscores.sort()\nprint(scores)",
+            "assert \"[1, 5, 10]\" in __out",
+            "Le code est déjà correct ! Clique sur Vérifier.");
+
+        addEx("★ MOTEUR DU JEU SNAKE",
+            `<div class="exo-concept">🏆 <b>Projet Final !</b> Tu codes le mouvement du serpent dans le jeu Snake !<br><br>Le serpent est une liste de coordonnées <code>[(x, y)]</code>. <code>snake[0]</code> est la <b>tête</b>.<br>• HAUT → y diminue de 1<br>• BAS → y augmente de 1<br>• GAUCHE → x diminue de 1<br>• DROITE → x augmente de 1</div>
+            <div class="exo-task">✏️ Complète les cas GAUCHE et DROITE :<br>• <code>elif direction == 'GAUCHE':</code> → <code>new_head = (head_x - 1, head_y)</code><br>• <code>elif direction == 'DROITE':</code> → <code>new_head = (head_x + 1, head_y)</code><br><br>Le <code>insert</code> et le <code>pop</code> sont déjà faits.</div>`,
+            "def move_snake(snake, direction):\n    head_x = snake[0][0]\n    head_y = snake[0][1]\n    \n    if direction == 'HAUT':\n        new_head = (head_x, head_y - 1)\n    elif direction == 'BAS':\n        new_head = (head_x, head_y + 1)\n    # Fais GAUCHE et DROITE (x-1 et x+1)\n    \n    snake.insert(0, new_head)\n    snake.pop()\n    return snake",
+            "s = [(5,5), (5,6)]\nassert move_snake(s.copy(), 'HAUT') == [(5,4), (5,5)]\nassert move_snake(s.copy(), 'GAUCHE') == [(4,5), (5,5)]\nassert move_snake(s.copy(), 'DROITE') == [(6,5), (5,5)]",
+            "Remplace le commentaire par :<br><code>&nbsp;&nbsp;&nbsp;&nbsp;elif direction == 'GAUCHE':</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new_head = (head_x - 1, head_y)</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;elif direction == 'DROITE':</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new_head = (head_x + 1, head_y)</code>");
+
+
+        // --- 2. NOMS DES SECTIONS ---
+        const sectionNames = [
+            { start: 1, icon: '🐣', title: 'Les Bases', color: '#58cc02' },
+            { start: 11, icon: '🧮', title: 'Mathématiques', color: '#ffc800' },
+            { start: 21, icon: '🔀', title: 'Conditions IF', color: '#ff9600' },
+            { start: 31, icon: '🧠', title: 'Logique And/Or', color: '#ff4b4b' },
+            { start: 41, icon: '📦', title: 'Les Listes', color: '#ce82ff' },
+            { start: 51, icon: '🔄', title: 'Boucles FOR', color: '#1cb0f6' },
+            { start: 61, icon: '🔁', title: 'Boucles WHILE', color: '#ff86d0' },
+            { start: 71, icon: '⚡', title: 'Les Fonctions', color: '#58cc02' },
+            { start: 81, icon: '📖', title: 'Dictionnaires', color: '#ffc800' },
+            { start: 91, icon: '🚀', title: 'Modules & Projets', color: '#ce82ff' },
+        ];
+
+        // --- 3. ETAT DE L'APPLICATION ---
+        const STORAGE_KEY = 'pylingo_save_v1';
+        let currentProgress = 1;
+        let activeLessonId = null;
+        let xp = 0;
+        let pyodideInstance = null;
+        let editor;
+
+        // --- 4. SYSTÈME DE SAUVEGARDE (localStorage par appareil) ---
+        function saveProgress() {
+            try {
+                const saveData = {
+                    currentProgress: currentProgress,
+                    xp: xp,
+                    savedAt: new Date().toISOString()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+                showSaveIndicator();
+            } catch(e) {
+                console.error('Erreur de sauvegarde:', e);
+            }
+        }
+
+        function loadProgress() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    currentProgress = Math.min(Math.max(data.currentProgress || 1, 1), 101);
+                    xp = data.xp || 0;
+                    return true;
+                }
+            } catch(e) {
+                console.error('Erreur de chargement:', e);
+            }
+            return false;
+        }
+
+        function resetProgress() {
+            if (confirm('⚠️ Remettre ta progression à zéro ?\n\nCette action est irréversible ! Toute ta progression et tes XP seront perdus.')) {
+                localStorage.removeItem(STORAGE_KEY);
+                currentProgress = 1;
+                xp = 0;
+                updateXPDisplay();
+                renderMap();
+                showToast('Progression réinitialisée');
+            }
+        }
+
+        function showSaveIndicator() {
+            const indicator = document.getElementById('save-indicator');
+            indicator.style.opacity = '1';
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+            }, 2500);
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').innerText = text;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // --- 5. INITIALISATION ---
+        async function init() {
+            try {
+                // Charger la progression sauvegardée
+                const loaded = loadProgress();
+
+                // Chargement de Pyodide
+                pyodideInstance = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+                });
+                
+                // Initialisation de CodeMirror
+                editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+                    mode: 'python',
+                    theme: 'dracula',
+                    lineNumbers: true,
+                    indentUnit: 4,
+                    indentWithTabs: false,
+                    viewportMargin: Infinity
+                });
+
+                document.getElementById('loading-screen').classList.add('hidden');
+                updateXPDisplay();
+                renderMap();
+
+                if (loaded && currentProgress > 1) {
+                    showToast(`Progression chargée — Niveau ${currentProgress}`);
+                }
+            } catch (err) {
+                document.getElementById('loading-text').innerText = "Erreur de chargement. Rechargez la page.";
+                document.getElementById('loading-text').classList.add('text-red-500');
+                console.error(err);
+            }
+        }
+
+        // --- 6. GESTION DE LA CARTE (MAP) ---
+        function renderMap() {
+            const container = document.getElementById('path-container');
+            container.innerHTML = '';
+            
+            const curveStrength = 60; 
+
+            for (let i = 0; i < exercisesData.length; i++) {
+                const ex = exercisesData[i];
+                const isLocked = ex.id > currentProgress;
+                const isCurrent = ex.id === currentProgress;
+                const isDone = ex.id < currentProgress;
+
+                // Section header
+                const section = sectionNames.find(s => s.start === ex.id);
+                if (section) {
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.className = 'w-full flex justify-center py-2';
+                    sectionDiv.innerHTML = `
+                        <div class="section-header" style="border-color: ${section.color}40;">
+                            <div class="section-icon">${section.icon}</div>
+                            <div class="section-title" style="color: ${section.color};">${section.title}</div>
+                        </div>
+                    `;
+                    container.appendChild(sectionDiv);
+                }
+
+                const nodeWrapper = document.createElement('div');
+                nodeWrapper.className = 'w-full flex justify-center py-2 relative';
+                
+                const offset = Math.sin(i * 0.7) * curveStrength;
+                
+                const btn = document.createElement('button');
+                btn.className = `path-node w-20 h-20 rounded-full flex items-center justify-center border-b-4 text-3xl transition-all relative
+                    ${isLocked ? 'bg-gray-300 border-gray-400 text-gray-500 cursor-not-allowed opacity-80' : 
+                      isDone ? 'bg-[#58cc02] border-[#46a302] text-white hover:bg-[#46a302]' : 
+                      'bg-[#ffc800] border-[#cc9f00] text-white hover:bg-[#ffb000] pulse-ring z-10'}`;
+                
+                btn.style.transform = `translateX(${offset}px)`;
+                btn.onclick = () => {
+                    if (!isLocked) openLesson(ex.id);
+                };
+
+                // Ligne de connexion
+                if (i < exercisesData.length - 1) {
+                    const nextOffset = Math.sin((i + 1) * 0.7) * curveStrength;
+                    const line = document.createElement('div');
+                    line.className = `absolute w-2 -top-12 -bottom-2 -z-10 ${isDone ? 'bg-[#58cc02]' : 'bg-gray-300'}`;
+                    const tilt = (nextOffset - offset) > 0 ? 15 : -15;
+                    line.style.transform = `translateX(${offset + (nextOffset - offset)/2}px) rotate(${tilt}deg)`;
+                    nodeWrapper.appendChild(line);
+                }
+
+                // Icône
+                if (ex.isMilestone) {
+                    btn.innerHTML = isLocked ? '<i class="ph-fill ph-lock-key"></i>' : '<i class="ph-fill ph-star"></i>';
+                    btn.classList.add('w-24', 'h-24', 'border-b-8');
+                    if(isCurrent) btn.classList.replace('bg-[#ffc800]', 'bg-[#ce82ff]');
+                    if(isCurrent) btn.classList.replace('border-[#cc9f00]', 'border-[#a552de]');
+                } else {
+                    btn.innerHTML = isLocked ? '<i class="ph-fill ph-lock-key"></i>' : 
+                                    (isDone ? '<i class="ph-fill ph-check"></i>' : '<i class="ph-fill ph-book-open"></i>');
+                }
+
+                // Tooltip
+                const tooltip = document.createElement('div');
+                tooltip.className = 'absolute -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 pointer-events-none transition-opacity font-bold whitespace-nowrap';
+                tooltip.style.transform = `translateX(${offset}px)`;
+                tooltip.innerText = `${ex.id}. ${ex.title}`;
+                
+                btn.onmouseenter = () => tooltip.classList.replace('opacity-0', 'opacity-100');
+                btn.onmouseleave = () => tooltip.classList.replace('opacity-100', 'opacity-0');
+
+                nodeWrapper.appendChild(btn);
+                nodeWrapper.appendChild(tooltip);
+                container.appendChild(nodeWrapper);
+                
+                if (isCurrent) {
+                    setTimeout(() => nodeWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+                }
+            }
+        }
+
+        // --- 7. LOGIQUE DE L'EXERCICE ---
+        function openLesson(id) {
+            activeLessonId = id;
+            const ex = exercisesData[id - 1];
+            
+            document.getElementById('lesson-title').innerText = `Exercice ${id} : ${ex.title}`;
+            document.getElementById('lesson-desc').innerHTML = ex.desc;
+            document.getElementById('lesson-number-display').innerText = `${id}/${exercisesData.length}`;
+            document.getElementById('lesson-progress-bar').style.width = `${(id / exercisesData.length) * 100}%`;
+            
+            // Gestion de l'indice
+            const hintContainer = document.getElementById('hint-container');
+            const hintContent = document.getElementById('hint-content');
+            const hintBtnText = document.getElementById('hint-btn-text');
+            
+            if (ex.hint) {
+                hintContainer.classList.remove('hidden');
+                hintContent.innerHTML = ex.hint;
+                hintContent.classList.add('hidden');
+                hintBtnText.innerText = '💡 Voir un indice';
+            } else {
+                hintContainer.classList.add('hidden');
+            }
+            
+            editor.setValue(ex.code || "");
+            setTimeout(() => editor.refresh(), 10);
+            
+            updateConsoleUI("> Prêt. Clique sur Exécuter !");
+            closeDrawer();
+            
+            document.getElementById('lesson-view').classList.remove('hidden');
+        }
+
+        function toggleHint() {
+            const hintContent = document.getElementById('hint-content');
+            const hintBtnText = document.getElementById('hint-btn-text');
+            
+            if (hintContent.classList.contains('hidden')) {
+                hintContent.classList.remove('hidden');
+                hintBtnText.innerText = '🙈 Cacher l\'indice';
+            } else {
+                hintContent.classList.add('hidden');
+                hintBtnText.innerText = '💡 Voir un indice';
+            }
+        }
+
+        function closeLesson() {
+            document.getElementById('lesson-view').classList.add('hidden');
+            renderMap();
+        }
+
+        function updateConsoleUI(text, isError = false) {
+            const out = document.getElementById('console-output');
+            out.innerText = text;
+            out.style.color = isError ? '#ff4b4b' : '#a3e635';
+        }
+
+        // --- 8. EXECUTION PYTHON ---
+        async function runPythonCode(codeToRun) {
+            const wrapCode = `
+import sys
+from io import StringIO
+sys.stdout = StringIO()
+
+try:
+${codeToRun.split('\n').map(line => '    ' + line).join('\n')}
+except Exception as e:
+    print(e, file=sys.stderr)
+    raise e
+finally:
+    __captured_out = sys.stdout.getvalue()
+`;
+            try {
+                await pyodideInstance.runPythonAsync(wrapCode);
+                const out = pyodideInstance.globals.get("__captured_out");
+                return { success: true, output: out };
+            } catch (err) {
+                let errMsg = err.message.split('File "<exec>"').pop() || err.message;
+                return { success: false, output: errMsg.trim() };
+            }
+        }
+
+        async function runCode() {
+            const code = editor.getValue();
+            updateConsoleUI("> Exécution...", false);
+            const res = await runPythonCode(code);
+            
+            if (res.success) {
+                updateConsoleUI(res.output || "> (Pas de sortie)");
+            } else {
+                updateConsoleUI("Erreur :\n" + res.output, true);
+            }
+            return res;
+        }
+
+        async function checkAnswer() {
+            const btn = document.querySelector('#action-bar button');
+            const originalText = btn.innerText;
+            btn.innerText = "Vérification...";
+            btn.disabled = true;
+
+            const ex = exercisesData[activeLessonId - 1];
+            const userCode = editor.getValue();
+            
+            const res = await runPythonCode(userCode);
+            updateConsoleUI(res.output || "> (Pas de sortie)", !res.success);
+
+            if (!res.success) {
+                showDrawer(false, "Ton code contient une erreur de syntaxe ou d'exécution.");
+                btn.innerText = originalText;
+                btn.disabled = false;
+                return;
+            }
+
+            pyodideInstance.globals.set("__out", res.output || "");
+            
+            const testWrap = `
+${userCode}
+${ex.test}
+`;
+            
+            try {
+                await pyodideInstance.runPythonAsync(testWrap);
+                
+                showDrawer(true, "Excellent travail !");
+                if (ex.isMilestone) {
+                    triggerConfetti();
+                }
+            } catch (err) {
+                let msg = err.message;
+                if (msg.includes('AssertionError') || msg.includes('AssertionError')) {
+                    let customMsg = msg.split('AssertionError:').pop().trim();
+                    if(customMsg.length > 0 && !customMsg.includes('File')) {
+                        showDrawer(false, customMsg);
+                    } else {
+                        showDrawer(false, "Le résultat n'est pas tout à fait celui attendu. Relis la consigne.");
+                    }
+                } else {
+                    showDrawer(false, "Erreur lors de la validation : " + msg.split('File').pop().trim());
+                }
+            }
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        // --- 9. UI FEEDBACK ---
+        function showDrawer(isSuccess, message) {
+            const drawer = document.getElementById('feedback-drawer');
+            const title = document.getElementById('feedback-title');
+            const msg = document.getElementById('feedback-msg');
+            const icon = document.getElementById('feedback-icon');
+            const btn = document.getElementById('feedback-btn');
+            
+            drawer.classList.remove('bg-[#58cc02]', 'bg-[#ff4b4b]', 'text-white', 'text-[#791414]', 'text-[#2b5900]');
+            btn.classList.remove('bg-white', 'text-[#58cc02]', 'text-[#ff4b4b]', 'hover:bg-gray-100');
+            icon.classList.remove('text-[#58cc02]', 'text-[#ff4b4b]');
+
+            if (isSuccess) {
+                drawer.classList.add('bg-[#58cc02]', 'text-[#2b5900]');
+                icon.innerHTML = '<i class="ph-bold ph-check"></i>';
+                icon.classList.add('text-[#58cc02]');
+                title.innerText = "Parfait !";
+                msg.innerText = message;
+                btn.innerText = "Continuer";
+                btn.classList.add('bg-white', 'text-[#58cc02]', 'hover:bg-gray-100');
+                
+                btn.onclick = () => {
+                    if (activeLessonId === currentProgress && currentProgress < 100) {
+                        currentProgress++;
+                        xp += 10;
+                        updateXPDisplay();
+                        saveProgress(); // Sauvegarde automatique !
+                    }
+                    closeLesson();
+                };
+            } else {
+                drawer.classList.add('bg-[#ff4b4b]', 'text-[#791414]');
+                icon.innerHTML = '<i class="ph-bold ph-x"></i>';
+                icon.classList.add('text-[#ff4b4b]');
+                title.innerText = "Oups !";
+                msg.innerText = message;
+                btn.innerText = "Réessayer";
+                btn.classList.add('bg-white', 'text-[#ff4b4b]', 'hover:bg-gray-100');
+                
+                btn.onclick = closeDrawer;
+            }
+
+            drawer.classList.add('open');
+            document.getElementById('action-bar').classList.add('hidden');
+        }
+
+        function closeDrawer() {
+            document.getElementById('feedback-drawer').classList.remove('open');
+            setTimeout(() => {
+                document.getElementById('action-bar').classList.remove('hidden');
+            }, 300);
+        }
+
+        function triggerConfetti() {
+            var duration = 3 * 1000;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#58cc02', '#ffc800', '#ce82ff']
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#58cc02', '#ffc800', '#ce82ff']
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        function updateXPDisplay() {
+            document.getElementById('xp-counter').innerText = `${xp} XP`;
+        }
+
+        // Lancement !
+        window.addEventListener('load', init);
+
+    </script>
+</body>
+</html>
