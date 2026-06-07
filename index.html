@@ -220,6 +220,10 @@
                     <i class="ph-fill ph-heart text-xl"></i>
                     <span>∞</span>
                 </div>
+                <!-- Notif button -->
+                <button id="notif-btn" onclick="requestNotifications()" class="text-gray-500 hover:text-yellow-400 transition-colors" title="Activer les rappels">
+                    <i class="ph ph-bell text-lg"></i>
+                </button>
                 <!-- Reset button -->
                 <button onclick="resetProgress()" class="text-gray-500 hover:text-gray-300 transition-colors" title="Réinitialiser la progression">
                     <i class="ph ph-arrow-counter-clockwise text-lg"></i>
@@ -1584,8 +1588,66 @@ ${ex.test}
             document.getElementById('xp-counter').innerText = `${xp} XP`;
         }
 
+        // --- 10. NOTIFICATIONS DE RAPPEL ---
+        let reminderTimeout;
+        
+        function requestNotifications() {
+            if (!("Notification" in window)) {
+                alert("Ce navigateur ne supporte pas les notifications.");
+                return;
+            }
+            
+            Notification.requestPermission().then(permission => {
+                const notifBtn = document.getElementById('notif-btn');
+                if (permission === "granted") {
+                    notifBtn.classList.replace('text-gray-500', 'text-yellow-400');
+                    notifBtn.innerHTML = '<i class="ph-fill ph-bell text-lg"></i>';
+                    showToast("Rappels activés !");
+                } else {
+                    showToast("Notifications refusées.");
+                }
+            });
+        }
+        
+        // Gérer le départ et retour sur l'onglet
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "hidden") {
+                // L'utilisateur quitte l'application ou minimise
+                if ("Notification" in window && Notification.permission === "granted") {
+                    // On planifie un rappel au bout de 1 heure (3600000 ms).
+                    // Pour que tu puisses tester facilement, je l'ai mis à 30 secondes (30000 ms).
+                    reminderTimeout = setTimeout(() => {
+                        new Notification("PyLingo 🐍", {
+                            body: "Il est temps de continuer tes leçons Python ! Ton XP t'attend.",
+                            icon: "apple-touch-icon.png",
+                            badge: "apple-touch-icon.png",
+                            vibrate: [200, 100, 200]
+                        });
+                    }, 30000); // Remplacer par 3600000 pour 1h en conditions réelles
+                }
+            } else {
+                // L'utilisateur revient
+                if (reminderTimeout) {
+                    clearTimeout(reminderTimeout);
+                }
+            }
+        });
+        
+        function initNotifButton() {
+            if ("Notification" in window && Notification.permission === "granted") {
+                const notifBtn = document.getElementById('notif-btn');
+                if (notifBtn) {
+                    notifBtn.classList.replace('text-gray-500', 'text-yellow-400');
+                    notifBtn.innerHTML = '<i class="ph-fill ph-bell text-lg"></i>';
+                }
+            }
+        }
+
         // Lancement !
-        window.addEventListener('load', init);
+        window.addEventListener('load', () => {
+            init();
+            initNotifButton();
+        });
 
     </script>
 </body>
