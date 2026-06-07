@@ -181,6 +181,13 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+        
+        .rainbow-text {
+            background: linear-gradient(to right, #ef4444, #f97316, #f59e0b, #84cc16, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
     </style>
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col relative">
@@ -190,6 +197,25 @@
         <i class="ph ph-spinner-gap animate-spin text-6xl text-[#58cc02] mb-4"></i>
         <h1 class="text-2xl font-bold text-white mb-2">PyLingo</h1>
         <p class="text-gray-400 font-semibold" id="loading-text">Installation du moteur Python...</p>
+    </div>
+
+    <!-- Modal PyLingo Pro -->
+    <div id="pro-modal" class="fixed inset-0 z-[60] bg-black/80 hidden flex-col items-center justify-center p-4">
+        <div class="bg-[#131f24] border-2 border-gray-700 rounded-2xl w-full max-w-sm p-6 flex flex-col items-center text-center relative shadow-2xl">
+            <button onclick="closeProModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-300 text-2xl transition-colors">
+                <i class="ph ph-x"></i>
+            </button>
+            <div class="relative mb-3">
+                <div class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#ef4444] via-[#f59e0b] to-[#8b5cf6] opacity-75 blur"></div>
+                <img src="apple-touch-icon.png" class="relative w-20 h-20 rounded-2xl shadow-xl" alt="PyLingo Pro Logo">
+            </div>
+            <h2 class="text-3xl font-extrabold mb-2 rainbow-text tracking-wider">PyLingo Pro</h2>
+            <p id="pro-modal-msg" class="text-gray-300 mb-6 font-semibold">Débloquez l'accès illimité en entrant votre clé secrète.</p>
+            <input type="password" id="pro-key-input" placeholder="Clé secrète" class="w-full bg-[#1e293b] border-2 border-gray-600 rounded-xl p-3 text-white font-bold mb-4 focus:outline-none focus:border-[#58cc02] transition-colors text-center" onkeydown="if(event.key === 'Enter') submitProKey()">
+            <button onclick="submitProKey()" class="w-full bg-[#58cc02] hover:bg-[#46a302] text-white font-bold py-3 rounded-xl transition-all active:scale-95 text-lg shadow-[0_4px_0_#46a302]">
+                Valider
+            </button>
+        </div>
     </div>
 
     <!-- Toast notification -->
@@ -202,9 +228,12 @@
     <div id="map-view" class="flex-1 flex flex-col h-full overflow-hidden">
         <!-- Header Map -->
         <div class="h-16 border-b border-gray-700 flex items-center justify-between px-4 bg-[#131f24] shrink-0 sticky top-0 z-10">
-            <div class="flex items-center gap-2">
-                <i class="ph-fill ph-code text-2xl text-[#58cc02]"></i>
-                <span class="font-bold text-xl tracking-wider">PyLingo</span>
+            <div class="flex flex-col items-start gap-0">
+                <div class="flex items-center gap-2">
+                    <img src="logo.png" alt="PyLingo Logo" class="w-8 h-8 rounded-lg shadow-sm">
+                    <span id="app-title" class="font-bold text-xl tracking-wider">PyLingo</span>
+                </div>
+                <span class="text-[10px] text-gray-400" style="line-height: 1;">Codé par Mohamed Mehdi Tannoubi</span>
             </div>
             <div class="flex items-center gap-4 font-bold">
                 <!-- Save indicator -->
@@ -212,18 +241,26 @@
                     <i class="ph ph-cloud-check"></i>
                     <span>Sauvé</span>
                 </div>
-                <div class="flex items-center gap-1 text-[#ffc800]">
+                <div class="flex items-center gap-1 text-[#ffc800]" title="Ton XP">
                     <i class="ph-fill ph-crown text-xl"></i>
                     <span id="xp-counter">0 XP</span>
                 </div>
-                <div class="flex items-center gap-1 text-[#ff4b4b]">
+                <div class="flex items-center gap-1 text-[#ff4b4b] cursor-pointer" onclick="unlockPro()" title="Passer Pro">
                     <i class="ph-fill ph-heart text-xl"></i>
-                    <span>∞</span>
+                    <span id="lives-counter">5</span>
                 </div>
                 <!-- Notif button -->
                 <button id="notif-btn" onclick="requestNotifications()" class="text-gray-500 hover:text-yellow-400 transition-colors" title="Activer les rappels">
                     <i class="ph ph-bell text-lg"></i>
                 </button>
+                <!-- Upload / Download Save -->
+                <button onclick="downloadSave()" class="text-gray-500 hover:text-[#58cc02] transition-colors" title="Télécharger la sauvegarde">
+                    <i class="ph ph-download-simple text-lg"></i>
+                </button>
+                <button onclick="document.getElementById('upload-save').click()" class="text-gray-500 hover:text-[#58cc02] transition-colors" title="Charger une sauvegarde">
+                    <i class="ph ph-upload-simple text-lg"></i>
+                </button>
+                <input type="file" id="upload-save" class="hidden" accept=".json" onchange="uploadSave(event)">
                 <!-- Reset button -->
                 <button onclick="resetProgress()" class="text-gray-500 hover:text-gray-300 transition-colors" title="Réinitialiser la progression">
                     <i class="ph ph-arrow-counter-clockwise text-lg"></i>
@@ -1184,11 +1221,20 @@
         let editor;
 
         // --- 4. SYSTÈME DE SAUVEGARDE (localStorage par appareil) ---
+        let dailyLessonsCount = 0;
+        let lastPlayedDate = new Date().toDateString();
+        let unlockedKey = false;
+        let playerName = "";
+
         function saveProgress() {
             try {
                 const saveData = {
                     currentProgress: currentProgress,
                     xp: xp,
+                    dailyLessonsCount: dailyLessonsCount,
+                    lastPlayedDate: lastPlayedDate,
+                    unlockedKey: unlockedKey,
+                    playerName: playerName,
                     savedAt: new Date().toISOString()
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
@@ -1205,12 +1251,59 @@
                     const data = JSON.parse(saved);
                     currentProgress = Math.min(Math.max(data.currentProgress || 1, 1), 101);
                     xp = data.xp || 0;
+                    dailyLessonsCount = data.dailyLessonsCount || 0;
+                    lastPlayedDate = data.lastPlayedDate || new Date().toDateString();
+                    unlockedKey = data.unlockedKey || false;
+                    playerName = data.playerName || "";
+                    
+                    const today = new Date().toDateString();
+                    if (lastPlayedDate !== today) {
+                        dailyLessonsCount = 0;
+                        lastPlayedDate = today;
+                    }
                     return true;
                 }
             } catch(e) {
                 console.error('Erreur de chargement:', e);
             }
             return false;
+        }
+
+        function downloadSave() {
+            saveProgress();
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if(!saved) return;
+            const blob = new Blob([saved], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "pylingo_save.json";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function uploadSave(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data && data.currentProgress) {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                        loadProgress();
+                        renderMap();
+                        updateXPDisplay();
+                        showToast("Sauvegarde synchronisée !");
+                    } else {
+                        alert("Fichier de sauvegarde invalide.");
+                    }
+                } catch(err) {
+                    alert("Erreur lors de la lecture du fichier.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input
         }
 
         function resetProgress() {
@@ -1410,6 +1503,20 @@
 
         // --- 7. LOGIQUE DE L'EXERCICE ---
         function openLesson(id) {
+            if (!unlockedKey && id >= currentProgress) {
+                const today = new Date().toDateString();
+                if (lastPlayedDate !== today) {
+                    dailyLessonsCount = 0;
+                    lastPlayedDate = today;
+                    saveProgress();
+                    updateXPDisplay();
+                }
+                if (dailyLessonsCount >= 5) {
+                    showProModal("Tu as atteint la limite de 5 leçons par jour !<br>Passe à PyLingo Pro pour continuer en illimité.");
+                    return;
+                }
+            }
+
             activeLessonId = id;
             const ex = exercisesData[id - 1];
             
@@ -1582,6 +1689,7 @@ ${ex.test}
                     if (activeLessonId === currentProgress && currentProgress < 100) {
                         currentProgress++;
                         xp += 10;
+                        dailyLessonsCount++;
                         updateXPDisplay();
                         saveProgress(); // Sauvegarde automatique !
                     }
@@ -1639,9 +1747,58 @@ ${ex.test}
 
         function updateXPDisplay() {
             document.getElementById('xp-counter').innerText = `${xp} XP`;
+            const appTitle = document.getElementById('app-title');
+            const livesCounter = document.getElementById('lives-counter');
+            if (appTitle && livesCounter) {
+                if (unlockedKey) {
+                    appTitle.innerText = "PyLingo Pro";
+                    appTitle.classList.add("text-[#ffc800]");
+                    livesCounter.innerText = "∞";
+                } else {
+                    appTitle.innerText = "PyLingo";
+                    appTitle.classList.remove("text-[#ffc800]");
+                    let livesLeft = 5 - dailyLessonsCount;
+                    if (livesLeft < 0) livesLeft = 0;
+                    livesCounter.innerText = livesLeft;
+                }
+            }
         }
 
-        // --- 10. NOTIFICATIONS DE RAPPEL ---
+        function unlockPro() {
+            if (unlockedKey) {
+                showToast("Tu es déjà sur PyLingo Pro !");
+                return;
+            }
+            showProModal("Passe à PyLingo Pro pour un accès illimité !<br>Entre ta clé secrète ci-dessous :");
+        }
+
+        function showProModal(msg) {
+            document.getElementById('pro-modal-msg').innerHTML = msg;
+            document.getElementById('pro-key-input').value = '';
+            document.getElementById('pro-modal').classList.remove('hidden');
+            document.getElementById('pro-modal').classList.add('flex');
+            setTimeout(() => document.getElementById('pro-key-input').focus(), 100);
+        }
+
+        function closeProModal() {
+            document.getElementById('pro-modal').classList.add('hidden');
+            document.getElementById('pro-modal').classList.remove('flex');
+        }
+
+        function submitProKey() {
+            const userInput = document.getElementById('pro-key-input').value.trim();
+            if (userInput === "JKLMehdi04") {
+                unlockedKey = true;
+                saveProgress();
+                updateXPDisplay();
+                closeProModal();
+                showToast("Bienvenue dans PyLingo Pro !");
+            } else {
+                showToast("Clé incorrecte. Essaie encore !");
+            }
+        }
+
+        // --- 11. NOTIFICATIONS DE RAPPEL ---
         let reminderTimeout;
         
         function requestNotifications() {
