@@ -1942,7 +1942,7 @@ ${ex.test}
             }
             if (/^PLP-(1W|1M|1Y|UL)-[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(key)) {
                 const parts = key.split('-');
-                const chars = parts[2] + parts[3];
+                const chars = parts[1] + parts[2] + parts[3];
                 let sum = 0;
                 for (let i = 0; i < chars.length; i++) sum += chars.charCodeAt(i);
                 if (sum % 7 === 0) return { valid: true, duration: parts[1] };
