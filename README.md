@@ -1,99 +1,37 @@
-PyLingo : Présentation & Architecture Technique
+# PyLingo 🐍
 
-PyLingo est une application web d'apprentissage interactive et ludique (gamifiée) dédiée à l'apprentissage du langage Python. Conçue entièrement en "Single Page Application" (SPA) contenue dans un fichier unique, elle permet d'écrire, d'exécuter et de valider du code Python directement dans le navigateur de l'utilisateur, sans aucune installation logicielle externe.
+PyLingo est une application web interactive et ludique pour apprendre les bases de la programmation en **Python**. Conçu avec une approche inspirée de célèbres applications d'apprentissage de langues, PyLingo vous propose un chemin d'apprentissage progressif avec des leçons interactives, un éditeur de code complet et un moteur d'exécution Python directement intégré dans votre navigateur !
 
-🛠️ Stack Technique & Dépendances
+## 🚀 Fonctionnalités Principales
 
-L'application repose sur un ensemble de bibliothèques modernes chargées via CDN, garantissant la légèreté de l'hébergement et une exécution immédiate côté client (Client-Side) :
+*   **100 Niveaux Progressifs** : Parcourez une carte d'apprentissage (Map) allant des bases (`print()`, variables) jusqu'aux concepts plus complexes.
+*   **Exécution de Python dans le navigateur** : Grâce à [Pyodide](https://pyodide.org/), le code Python que vous écrivez est compilé et exécuté instantanément dans votre navigateur, sans nécessiter de serveur ou d'installation complexe !
+*   **Éditeur de Code Avancé** : Intégration de [CodeMirror](https://codemirror.net/) avec le thème Dracula pour une expérience de codage confortable et stylée.
+*   **Système de Progression et de Vies** : Gagnez de l'XP à chaque leçon réussie. Mais attention, vous perdez des cœurs si vous vous trompez !
+*   **Sauvegarde Locale** : Votre progression, vos XP et vos leçons terminées sont automatiquement sauvegardés dans le navigateur via `localStorage`. Vous pouvez également télécharger et importer vos sauvegardes au format JSON.
+*   **Design "App" Fluide** : Utilisation de Tailwind CSS pour un rendu esthétique et responsive qui donne l'impression d'utiliser une véritable application native.
+*   **PyLingo Pro** : Un système d'abonnement (simulé) pour débloquer des vies illimitées et accéder à toutes les fonctionnalités sans interruption.
 
-Moteur d'exécution Python (Pyodide v0.25.0) : Compilateur Python basé sur WebAssembly (WASM). Il permet d'exécuter du code Python standard complet directement à l'intérieur du bac à sable (sandbox) du navigateur à une vitesse quasi-native.
+## 🛠️ Technologies Utilisées
 
-Éditeur de code (CodeMirror v5.65.13) : Fournit un éditeur de code de niveau professionnel avec coloration syntaxique pour Python, gestion des tabulations et de l'indentation adaptées.
+*   **HTML5 / CSS3** : Structure et style de base.
+*   **JavaScript (Vanilla)** : Logique complète de l'application (pas de framework lourd).
+*   **Tailwind CSS** (via CDN) : Pour un design rapide, moderne et esthétique.
+*   **Pyodide** : Le cœur de l'application, permettant d'exécuter du vrai Python (CPython) compilé en WebAssembly dans le navigateur.
+*   **CodeMirror** : L'éditeur de texte enrichi pour la coloration syntaxique.
+*   **Canvas Confetti** : Pour célébrer vos victoires et les paliers atteints !
+*   **Phosphor Icons** : Pour une iconographie élégante et moderne.
 
-Design & Style (Tailwind CSS) : Framework CSS utilitaire permettant d'avoir une interface entièrement adaptative (responsive), moderne (inspirée de Duolingo) et fluide.
+## 📥 Installation & Utilisation
 
-Effets visuels & Sonores (Canvas Confetti & Web Audio API) :
+PyLingo est une application **100% Client-Side** (Front-end). Aucune base de données ou serveur backend n'est nécessaire.
 
-Confetti pour récompenser visuellement les utilisateurs lors de la réussite d'un jalon majeur (milestone).
+1. Clonez ce dépôt ou téléchargez les fichiers.
+2. Ouvrez simplement le fichier `index.html` dans n'importe quel navigateur web moderne (Chrome, Firefox, Safari, Edge).
+3. Et c'est tout ! Commencez à coder en Python immédiatement.
 
-Web Audio API native pour synthétiser des ondes sonores personnalisées de succès (ondes sinusoïdales), d'erreur (ondes en dents de scie) ou de niveau franchi (ondes triangulaires), éliminant le besoin de fichiers audio lourds.
+*(Note : Lors du premier chargement de la page, Pyodide télécharge le moteur Python en arrière-plan. Cela peut prendre quelques secondes en fonction de votre connexion).*
 
-Ressources visuelles (Phosphor Icons & Google Fonts Nunito) : Fournissent une typographie claire et lisible alliée à un catalogue d'icônes vectorielles cohérent.
+## 👨‍💻 Créé par
 
-📐 Architecture & Fonctionnalités Clés
-
-1. Compilation et Validation dans le Navigateur
-
-Le cœur technique de PyLingo réside dans l'intégration de Pyodide.
-
-Capture de flux (stdout/stderr) : L'application encapsule le code de l'utilisateur en redirigeant le flux de sortie standard (sys.stdout) vers un tampon mémoire (StringIO). Cela permet d'isoler l'affichage de la console locale et de la restituer proprement à l'écran.
-
-Tests unitaires asynchrones : Pour chaque exercice, l'application exécute d'abord le code de l'utilisateur, puis lui injecte un script de test Python spécifique (ex: validation de variables, structures de contrôle, assertions). La réussite de la validation repose sur un mécanisme d'assertions Python (assert) attrapé par le moteur JavaScript.
-
-2. Ingénierie Pédagogique (100 Niveaux / 10 Sections)
-
-Le parcours d'apprentissage est divisé de manière modulaire en 10 sections thématiques de 10 exercices chacune :
-
-Les Bases (Variables, entrées-sorties simples, types)
-
-Mathématiques (Opérations, modulo, priorités)
-
-Conditions IF (Structures logiques, indentations)
-
-Logique AND/OR (Opérateurs booléens, conditions complexes)
-
-Les Listes (Tableaux, indexes, méthodes d'inventaire)
-
-Boucles FOR (Itérations, parcours, filtres)
-
-Boucles WHILE (Boucles conditionnelles, conditions d'arrêt)
-
-Les Fonctions (Arguments, valeurs de retour, scope local)
-
-Dictionnaires (Paires clé-valeur, dictionnaires imbriqués)
-
-Modules & Mini-projets (Importations, random, math, algorithme final du jeu Snake)
-
-3. Sauvegarde et Persistance
-
-L'état de l'application est géré localement en mémoire et synchronisé de deux manières :
-
-Sauvegarde automatique : Utilisation de l'API localStorage du navigateur pour conserver en temps réel la progression de l'utilisateur (niveau atteint, score d'XP).
-
-Import/Export physique : Possibilité de télécharger un fichier JSON de sauvegarde (pylingo_save.json) et de le réimporter sur un autre appareil ou navigateur, assurant la portabilité de l'apprentissage.
-
-4. Expérience Mobile-First & Notifications de Rappel
-
-L'interface est configurée pour réagir comme une application native sur iOS et Android :
-
-Web App capable (PWA) : Présence des balises <meta> requises pour masquer la barre d'adresse du navigateur une fois l'application ajoutée à l'écran d'accueil d'un iPhone (icône dédiée, statut bar translucide).
-
-Rappels d'activité : Utilisation de l'API JavaScript Notification combinée à l'écouteur d'état de visibilité de l'application (visibilitychange). Si l'utilisateur quitte l'application ou met son téléphone en veille, un minuteur planifie un rappel personnalisé l'invitant à reprendre sa leçon.
-
-💾 Analyse du Code Source Principal
-
-L'application est entièrement contenue dans une architecture propre à fichier unique :
-
-index.html
-├── HEAD (Métadonnées iOS, CSS Tailwind, CDN CodeMirror/Pyodide/Confetti)
-├── CSS Styles (Overlays personnalisés, Drawer d'évaluation, thèmes CodeMirror)
-├── HTML Body
-│   ├── Écran de chargement initial (Initialisation asynchrone de Pyodide)
-│   ├── Vue 1 : Carte de progression (Générée dynamiquement en forme de courbe sinus)
-│   └── Vue 2 : Interface de l'exercice (Description, éditeur de code, console de sortie)
-└── JavaScript Engine
-    ├── Données brutes des 100 exercices (Enoncés, codes de départ, tests d'évaluation)
-    ├── Gestionnaires d'événements & Audio (Web Audio API)
-    ├── Wrapper d'exécution asynchrone pour Pyodide
-    └── Logique de sauvegarde & Notifications push
-
-
-🚀 Perspectives d'Évolution
-
-Grâce à sa structure propre et à l'isolation de ses modules, PyLingo peut évoluer vers plusieurs fonctionnalités avancées :
-
-Persistance Cloud : Remplacement optionnel de la sauvegarde locale par une base de données Cloud asynchrone pour synchroniser la progression multi-appareil via un compte utilisateur.
-
-Éditeur de niveaux communautaire : Permettre aux enseignants ou aux utilisateurs avancés de concevoir leurs propres exercices en y associant des assertions personnalisées écrites en Python.
-
-Mode Hors-ligne (PWA Complète) : Configuration d'un Service Worker et mise en cache locale des bibliothèques clés (y compris le package WASM de Pyodide) pour exécuter l'application entièrement sans connexion internet.
+Codé avec passion par **Mohamed Mehdi Tannoubi**.

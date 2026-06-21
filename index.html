@@ -215,6 +215,9 @@
             <button onclick="submitProKey()" class="w-full bg-[#58cc02] hover:bg-[#46a302] text-white font-bold py-3 rounded-xl transition-all active:scale-95 text-lg shadow-[0_4px_0_#46a302]">
                 Valider
             </button>
+            <button id="pro-remove-btn" onclick="removePro()" class="hidden w-full bg-[#ff4b4b] hover:bg-[#d63434] text-white font-bold py-3 mt-3 rounded-xl transition-all active:scale-95 text-lg shadow-[0_4px_0_#a81e1e]">
+                Désactiver PyLingo Pro
+            </button>
         </div>
     </div>
 
@@ -1309,6 +1312,17 @@
         let unlockedKey = false;
         let playerName = "";
 
+        function isProActive() {
+            if (unlockedKey === true) return true;
+            if (typeof unlockedKey === 'number' && Date.now() < unlockedKey) return true;
+            if (typeof unlockedKey === 'number' && Date.now() >= unlockedKey) {
+                unlockedKey = false;
+                saveProgress();
+                return false;
+            }
+            return false;
+        }
+
         function saveProgress() {
             try {
                 const saveData = {
@@ -1586,7 +1600,7 @@
 
         // --- 7. LOGIQUE DE L'EXERCICE ---
         function openLesson(id) {
-            if (!unlockedKey && id >= currentProgress) {
+            if (!isProActive() && id >= currentProgress) {
                 const today = new Date().toDateString();
                 if (lastPlayedDate !== today) {
                     dailyLessonsCount = 0;
@@ -1848,7 +1862,7 @@ ${ex.test}
             const appTitle = document.getElementById('app-title');
             const livesCounter = document.getElementById('lives-counter');
             if (appTitle && livesCounter) {
-                if (unlockedKey) {
+                if (isProActive()) {
                     appTitle.innerText = "PyLingo Pro";
                     appTitle.classList.add("text-[#ffc800]");
                     livesCounter.innerText = "∞";
@@ -1862,15 +1876,42 @@ ${ex.test}
             }
         }
 
+        function formatTimeRemaining(ms) {
+            let totalSeconds = Math.floor(ms / 1000);
+            let days = Math.floor(totalSeconds / (3600 * 24));
+            let hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+            let minutes = Math.floor((totalSeconds % 3600) / 60);
+            if (days > 0) return `${days} jours et ${hours} heures`;
+            if (hours > 0) return `${hours} heures et ${minutes} minutes`;
+            return `${minutes} minutes`;
+        }
+
         function unlockPro() {
-            if (unlockedKey) {
-                showToast("Tu es déjà sur PyLingo Pro !");
+            if (isProActive()) {
+                let msg = "Tu es actuellement sur PyLingo Pro !<br><br>";
+                if (unlockedKey === true) {
+                    msg += "Temps restant : <span class='text-[#58cc02]'>Illimité</span>";
+                } else {
+                    msg += "Temps restant : <span class='text-[#ffc800]'>" + formatTimeRemaining(unlockedKey - Date.now()) + "</span>";
+                }
+                document.getElementById('pro-modal-msg').innerHTML = msg;
+                document.getElementById('pro-key-input').classList.add('hidden');
+                document.querySelector('button[onclick="submitProKey()"]').classList.add('hidden');
+                document.getElementById('pro-remove-btn').classList.remove('hidden');
+                
+                document.getElementById('pro-modal').classList.remove('hidden');
+                document.getElementById('pro-modal').classList.add('flex');
                 return;
             }
             showProModal("Passe à PyLingo Pro pour un accès illimité !<br>Entre ta clé secrète ci-dessous :");
         }
 
         function showProModal(msg) {
+            document.getElementById('pro-key-input').classList.remove('hidden');
+            document.querySelector('button[onclick="submitProKey()"]').classList.remove('hidden');
+            const removeBtn = document.getElementById('pro-remove-btn');
+            if (removeBtn) removeBtn.classList.add('hidden');
+
             document.getElementById('pro-modal-msg').innerHTML = msg;
             document.getElementById('pro-key-input').value = '';
             document.getElementById('pro-modal').classList.remove('hidden');
@@ -1883,19 +1924,36 @@ ${ex.test}
             document.getElementById('pro-modal').classList.remove('flex');
         }
 
+        function removePro() {
+            unlockedKey = false;
+            saveProgress();
+            updateXPDisplay();
+            closeProModal();
+            showToast("PyLingo Pro a été désactivé.");
+        }
+
         function isValidProKey(key) {
-            // Key format: PLP-XXXXX-XXXXX where X are alphanumeric
-            if (!/^PLP-[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(key)) return false;
-            // Checksum: sum of all char codes in the two 5-char groups must be divisible by 7
-            const parts = key.split('-');
-            const chars = parts[1] + parts[2];
-            let sum = 0;
-            for (let i = 0; i < chars.length; i++) sum += chars.charCodeAt(i);
-            return sum % 7 === 0;
+            if (/^PLP-[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(key)) {
+                const parts = key.split('-');
+                const chars = parts[1] + parts[2];
+                let sum = 0;
+                for (let i = 0; i < chars.length; i++) sum += chars.charCodeAt(i);
+                if (sum % 7 === 0) return { valid: true, duration: 'UL' };
+            }
+            if (/^PLP-(1W|1M|1Y|UL)-[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(key)) {
+                const parts = key.split('-');
+                const chars = parts[2] + parts[3];
+                let sum = 0;
+                for (let i = 0; i < chars.length; i++) sum += chars.charCodeAt(i);
+                if (sum % 7 === 0) return { valid: true, duration: parts[1] };
+            }
+            return { valid: false };
         }
 
         function submitProKey() {
             const userInput = document.getElementById('pro-key-input').value.trim();
+            const keyCheck = isValidProKey(userInput);
+            
             if (btoa(userInput) === "QWRtaW5NZWhkaTA0") {
                 unlockedKey = true;
                 currentProgress = 101;
@@ -1904,8 +1962,13 @@ ${ex.test}
                 renderMap();
                 closeProModal();
                 showToast("Tous les niveaux débloqués !");
-            } else if (userInput === "JKLMehdi04" || isValidProKey(userInput)) {
-                unlockedKey = true;
+            } else if (userInput === "JKLMehdi04" || keyCheck.valid) {
+                const dur = (userInput === "JKLMehdi04") ? 'UL' : keyCheck.duration;
+                if (dur === '1W') unlockedKey = Date.now() + 7 * 24 * 60 * 60 * 1000;
+                else if (dur === '1M') unlockedKey = Date.now() + 30 * 24 * 60 * 60 * 1000;
+                else if (dur === '1Y') unlockedKey = Date.now() + 365 * 24 * 60 * 60 * 1000;
+                else unlockedKey = true;
+
                 saveProgress();
                 updateXPDisplay();
                 closeProModal();
